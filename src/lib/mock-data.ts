@@ -58,7 +58,8 @@ export const initialCustomers: Customer[] = [
         periodStart: new Date('2024-05-20').toISOString(), 
         periodEnd: new Date('2024-06-19').toISOString(), 
         paymentMethod: 'cash',
-        paymentStatus: 'lunas' 
+        paymentStatus: 'lunas',
+        signatureDataUrl: 'Ditandatangani oleh: Siti Aminah (via Kolektor Budi)'
        },
        // No payment for June/July, hence 'isolir'
        // Let's add a pending one to demonstrate
@@ -127,9 +128,10 @@ export const initialCustomers: Customer[] = [
         amount: 200000, 
         periodStart: new Date('2024-06-01').toISOString(), 
         periodEnd: new Date('2024-06-30').toISOString(), 
-        paymentMethod: 'transfer',
+        paymentMethod: 'cash',
         paymentStatus: 'lunas',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiDewiJuni'
+        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiDewiJuni',
+        signatureDataUrl: 'Ditandatangani oleh: Dewi Lestari (Kolektor Ani)'
       },
     ],
     notes: 'Pembayaran selalu lancar.',
@@ -167,13 +169,24 @@ export const initialCustomers: Customer[] = [
 
 // Function to get a deep copy of initial customers
 export const getInitialCustomers = (): Customer[] => {
+  // Use structuredClone for a more robust deep copy if available, otherwise fallback to JSON method
+  if (typeof structuredClone === 'function') {
+    return structuredClone(initialCustomers);
+  }
   return JSON.parse(JSON.stringify(initialCustomers));
 };
 
 
 export const findCustomerById = (id: string, customersData?: Customer[]): Customer | undefined => {
-  const source = customersData || initialCustomers;
-  return source.find(customer => customer.id === id);
+  const source = customersData || initialCustomers; // Use provided data or fallback to initial
+  const customer = source.find(customer => customer.id === id);
+  if (customer) {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(customer);
+    }
+    return JSON.parse(JSON.stringify(customer));
+  }
+  return undefined;
 };
 
 // Helper function to get all payments from a given set of customers
@@ -193,5 +206,5 @@ export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & {
 
 // Initial fetcher using the static data
 export const getAllPayments = (): (Payment & { customerId: string, customerName: string })[] => {
-    return getAllPaymentsFromCustomers(initialCustomers);
+    return getAllPaymentsFromCustomers(getInitialCustomers()); // Use the copying function
 }

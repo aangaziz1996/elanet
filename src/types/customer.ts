@@ -5,7 +5,7 @@ export interface Payment {
   periodStart: string; // ISO date string
   periodEnd: string; // ISO date string
   proofOfPaymentUrl?: string;
-  signatureDataUrl?: string;
+  signatureDataUrl?: string; // For digital signature, e.g., "Ditandatangani oleh: Nama Jelas"
   paymentMethod?: 'cash' | 'transfer' | 'online' | 'other';
   notes?: string;
   recordedBy?: string; // User ID or name

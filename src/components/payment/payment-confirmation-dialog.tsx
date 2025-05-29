@@ -3,7 +3,7 @@
 
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,7 +35,7 @@ import { CalendarIcon, UploadCloud } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { Payment } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +45,7 @@ const paymentConfirmationSchema = z.object({
   amount: z.coerce.number().positive({ message: 'Jumlah bayar harus positif.' }),
   paymentMethod: z.enum(['transfer', 'cash', 'online', 'other'], { required_error: 'Metode pembayaran harus dipilih.' }),
   proofFile: z.any().optional(), // In a real app, use z.instanceof(File) and refine
+  signatureText: z.string().optional(), // For offline/cash signature
   notes: z.string().max(255).optional(),
 });
 
@@ -53,7 +54,7 @@ type PaymentConfirmationFormValues = z.infer<typeof paymentConfirmationSchema>;
 interface PaymentConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus' > & { proofFileName?: string }) => void;
+  onSubmit: (data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus' > & { proofFileName?: string; signatureDataUrl?: string }) => void;
   defaultAmount: number;
 }
 
@@ -73,9 +74,12 @@ export default function PaymentConfirmationDialog({
       amount: defaultAmount,
       paymentMethod: 'transfer',
       notes: '',
+      signatureText: '',
     },
   });
   
+  const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
+
   React.useEffect(() => {
     if (isOpen) {
       form.reset({
@@ -84,6 +88,7 @@ export default function PaymentConfirmationDialog({
         paymentMethod: 'transfer',
         notes: '',
         proofFile: undefined,
+        signatureText: '',
       });
       setFileName(null);
     }
@@ -102,13 +107,18 @@ export default function PaymentConfirmationDialog({
   };
 
   const handleSubmit = (values: PaymentConfirmationFormValues) => {
-    // Simulate submission
+    let signatureDataUrl: string | undefined = undefined;
+    if (values.paymentMethod === 'cash' && values.signatureText && values.signatureText.trim() !== '') {
+      signatureDataUrl = `Ditandatangani oleh: ${values.signatureText.trim()}`;
+    }
+
     const submissionData = {
         paymentDate: values.paymentDate.toISOString(),
         amount: values.amount,
         paymentMethod: values.paymentMethod,
         notes: values.notes,
         proofFileName: fileName || undefined, // Pass fileName for mock proofOfPaymentUrl
+        signatureDataUrl: signatureDataUrl,
     };
     onSubmit(submissionData);
     toast({
@@ -120,11 +130,11 @@ export default function PaymentConfirmationDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
           <DialogDescription>
-            Lengkapi detail pembayaran Anda dan unggah bukti jika ada.
+            Lengkapi detail pembayaran Anda dan unggah bukti jika ada. Untuk pembayaran tunai, harap isi nama penyetor sebagai tanda tangan.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -209,27 +219,45 @@ export default function PaymentConfirmationDialog({
               )}
             />
             
-            <FormItem>
-              <FormLabel>Bukti Pembayaran (Opsional)</FormLabel>
-              <FormControl>
-                <div className="flex items-center gap-2">
-                   <Button type="button" variant="outline" asChild className="relative overflow-hidden">
-                     <div>
-                        <UploadCloud className="mr-2 h-4 w-4" /> Unggah File
-                        <Input 
-                            id="proofFile"
-                            type="file" 
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            onChange={handleFileChange}
-                            accept="image/*,.pdf"
-                        />
-                     </div>
-                   </Button>
-                    {fileName && <span className="text-sm text-muted-foreground truncate max-w-[200px]">{fileName}</span>}
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            {paymentMethod !== 'cash' && (
+              <FormItem>
+                <FormLabel>Bukti Pembayaran (Opsional)</FormLabel>
+                <FormControl>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="outline" asChild className="relative overflow-hidden">
+                      <div>
+                          <UploadCloud className="mr-2 h-4 w-4" /> Unggah File
+                          <Input 
+                              id="proofFile"
+                              type="file" 
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              onChange={handleFileChange}
+                              accept="image/*,.pdf"
+                          />
+                      </div>
+                    </Button>
+                      {fileName && <span className="text-sm text-muted-foreground truncate max-w-[200px]">{fileName}</span>}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+
+            {paymentMethod === 'cash' && (
+                 <FormField
+                    control={form.control}
+                    name="signatureText"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Tanda Tangan (Ketik Nama Jelas Penyetor)</FormLabel>
+                        <FormControl>
+                            <Textarea placeholder="Contoh: Budi Doremi (Penyetor)" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
 
 
             <FormField

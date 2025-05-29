@@ -5,7 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Payment } from '@/types/customer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Edit } from 'lucide-react'; // Added Edit
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
@@ -165,6 +165,22 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
         >
             <Eye className="mr-1 h-3 w-3" /> Lihat
         </Button>
+      );
+    },
+  },
+  {
+    accessorKey: 'signatureDataUrl',
+    header: 'Tanda Tangan',
+    cell: ({ row }) => {
+      const signature = row.getValue('signatureDataUrl') as string | undefined;
+      if (!signature) return '-';
+      return (
+        <div className="text-xs text-muted-foreground italic flex items-center gap-1" title={signature}>
+            <Edit className="h-3 w-3 flex-shrink-0" /> 
+            <span className="truncate">
+                {signature.split(': ')[1] || signature}
+            </span>
+        </div>
       );
     },
   },
