@@ -1,4 +1,7 @@
 
+// This file is now mostly for reference or if you need to switch back to mock data temporarily.
+// Core customer data management is moving to Firestore.
+
 import type { Customer, Payment } from '@/types/customer';
 
 // Mock data for now
@@ -77,95 +80,13 @@ export const initialCustomers: Customer[] = [
     onuMacAddress: 'AA:BB:CC:DD:EE:02',
     ipAddress: '192.168.1.102',
   },
-  {
-    id: 'cust_3',
-    name: 'Budi Santoso',
-    address: 'Jl. Kebangsaan No. 1, Surabaya',
-    phoneNumber: '087812345678',
-    wifiPackage: '50 Mbps',
-    joinDate: new Date('2024-06-10').toISOString(), 
-    billingCycleDay: 10,
-    status: 'aktif', 
-    paymentHistory: [
-        {
-            id: 'pay_5',
-            paymentDate: new Date('2024-07-09').toISOString(),
-            amount: 250000, 
-            periodStart: new Date('2024-07-10').toISOString(),
-            periodEnd: new Date('2024-08-09').toISOString(),
-            paymentMethod: 'online',
-            paymentStatus: 'lunas'
-        }
-    ],
-    onuMacAddress: 'AA:BB:CC:DD:EE:03',
-    ipAddress: '192.168.1.103',
-  },
-   {
-    id: 'cust_4',
-    name: 'Dewi Lestari',
-    address: 'Jl. Kenanga No. 8, Yogyakarta',
-    phoneNumber: '081122334455',
-    email: 'dewi.l@example.com',
-    wifiPackage: '30 Mbps',
-    joinDate: new Date('2024-05-01').toISOString(),
-    billingCycleDay: 1,
-    status: 'aktif',
-    paymentHistory: [
-      { 
-        id: 'pay_6', 
-        paymentDate: new Date('2024-07-01').toISOString(), 
-        amount: 200000, 
-        periodStart: new Date('2024-07-01').toISOString(), 
-        periodEnd: new Date('2024-07-31').toISOString(), 
-        paymentMethod: 'transfer', 
-        paymentStatus: 'lunas',
-      },
-      { 
-        id: 'pay_7', 
-        paymentDate: new Date('2024-06-01').toISOString(), 
-        amount: 200000, 
-        periodStart: new Date('2024-06-01').toISOString(), 
-        periodEnd: new Date('2024-06-30').toISOString(), 
-        paymentMethod: 'tunai_kolektor',
-        paymentStatus: 'lunas',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiDewiJuni',
-        signatureDataUrl: 'Ditandatangani oleh: Dewi Lestari (Kolektor Ani)'
-      },
-    ],
-    notes: 'Pembayaran selalu lancar.',
-    onuMacAddress: 'AA:BB:CC:DD:EE:04',
-    ipAddress: '192.168.1.104',
-  },
-  {
-    id: 'cust_5',
-    name: 'Eko Prasetyo',
-    address: 'Jl. Mawar No. 12, Medan',
-    phoneNumber: '081298765432',
-    email: 'eko.p@example.com',
-    wifiPackage: '10 Mbps',
-    joinDate: new Date('2024-07-05').toISOString(),
-    billingCycleDay: 5,
-    status: 'baru', 
-    paymentHistory: [
-      {
-        id: 'pay_8',
-        paymentDate: new Date('2024-07-06').toISOString(),
-        amount: 100000,
-        periodStart: new Date('2024-07-05').toISOString(),
-        periodEnd: new Date('2024-08-04').toISOString(),
-        paymentMethod: 'transfer',
-        paymentStatus: 'pending_konfirmasi',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiEkoBaru',
-        notes: 'Pembayaran tagihan pertama.'
-      }
-    ],
-    notes: 'Pelanggan baru.',
-    onuMacAddress: 'AA:BB:CC:DD:EE:05',
-    ipAddress: '192.168.1.105',
-  }
+  // Add more customers if needed for initial Firestore population by hand, or use the app to add them.
 ];
 
+// These functions will need to be adapted to use Firestore if other parts of the app still use them.
+// For now, admin/pelanggan page uses server actions.
 export const getInitialCustomers = (): Customer[] => {
+  console.warn("getInitialCustomers from mock-data.ts is being called. Ensure this is intended if Firestore is integrated.");
   if (typeof structuredClone === 'function') {
     return structuredClone(initialCustomers);
   }
@@ -174,6 +95,7 @@ export const getInitialCustomers = (): Customer[] => {
 
 
 export const findCustomerById = (id: string, customersData?: Customer[]): Customer | undefined => {
+  console.warn("findCustomerById from mock-data.ts is being called. Ensure this is intended if Firestore is integrated.");
   const source = customersData || initialCustomers; 
   const customer = source.find(customer => customer.id === id);
   if (customer) {
@@ -186,6 +108,7 @@ export const findCustomerById = (id: string, customersData?: Customer[]): Custom
 };
 
 export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & { customerId: string, customerName: string })[] => {
+  console.warn("getAllPaymentsFromCustomers from mock-data.ts is being called. Ensure this is intended if Firestore is integrated.");
   const allPayments: (Payment & { customerId: string, customerName: string })[] = [];
   customers.forEach(customer => {
     customer.paymentHistory.forEach(payment => {
