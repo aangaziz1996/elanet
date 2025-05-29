@@ -2,16 +2,29 @@
 'use client';
 
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Payment, Customer } from '@/types/customer';
+import type { Payment } from '@/types/customer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type PaymentWithCustomerInfo = Payment & { customerId: string; customerName: string };
+
+interface AllPaymentsTableColumnProps {
+  onConfirmPayment: (paymentId: string) => void;
+  onRejectPayment: (paymentId: string) => void;
+}
 
 const getPaymentStatusBadgeVariant = (status: Payment['paymentStatus']): 'default' | 'secondary' | 'destructive' | 'outline' => {
   switch (status) {
@@ -37,13 +50,13 @@ const getPaymentStatusIcon = (status: Payment['paymentStatus']): React.ElementTy
     switch (status) {
       case 'lunas': return CheckCircle;
       case 'pending_konfirmasi': return Clock;
-      case 'ditolak': return AlertCircle;
+      case 'ditolak': return XCircle;
       default: return AlertCircle;
     }
 };
 
 
-export const columns: ColumnDef<PaymentWithCustomerInfo>[] = [
+export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableColumnProps): ColumnDef<PaymentWithCustomerInfo>[] => [
   {
     accessorKey: 'customerName',
     header: ({ column }) => (
@@ -131,10 +144,8 @@ export const columns: ColumnDef<PaymentWithCustomerInfo>[] = [
       const proofUrl = row.getValue('proofOfPaymentUrl') as string | undefined;
       if (!proofUrl) return '-';
       
-      // Simple check if it's a placeholder or a "real" (mocked) filename
       const isPlaceholder = proofUrl.startsWith('https://placehold.co');
       const isMockFilename = !proofUrl.startsWith('http');
-
 
       return (
         <Button 
@@ -143,7 +154,6 @@ export const columns: ColumnDef<PaymentWithCustomerInfo>[] = [
             className="h-auto p-0"
             onClick={(e) => {
                 if (isPlaceholder) {
-                    // For placeholder, maybe open in new tab is fine or show a modal
                     window.open(proofUrl, '_blank');
                 } else if (isMockFilename) {
                      e.preventDefault();
@@ -158,14 +168,36 @@ export const columns: ColumnDef<PaymentWithCustomerInfo>[] = [
       );
     },
   },
-  // Future actions: Confirm Payment, Reject Payment, etc.
-  // {
-  //   id: 'actions',
-  //   cell: ({ row }) => {
-  //     // const payment = row.original;
-  //     // Add actions like confirm, reject if status is pending
-  //     return <div className="text-center">...</div>
-  //   }
-  // }
+  {
+    id: 'actions',
+    header: () => <div className="text-center">Aksi</div>,
+    cell: ({ row }) => {
+      const payment = row.original;
+      if (payment.paymentStatus === 'pending_konfirmasi') {
+        return (
+          <div className="flex justify-center space-x-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-green-600 hover:text-green-700 hover:bg-green-100 h-8 px-2"
+              onClick={() => onConfirmPayment(payment.id)}
+              title="Konfirmasi Pembayaran"
+            >
+              <ThumbsUp className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-600 hover:text-red-700 hover:bg-red-100 h-8 px-2"
+              onClick={() => onRejectPayment(payment.id)}
+              title="Tolak Pembayaran"
+            >
+              <ThumbsDown className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      }
+      return <div className="text-center">-</div>;
+    },
+  },
 ];
-

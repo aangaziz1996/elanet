@@ -1,5 +1,5 @@
 
-import type { Customer } from '@/types/customer';
+import type { Customer, Payment } from '@/types/customer';
 
 // Mock data for now
 export const initialCustomers: Customer[] = [
@@ -136,22 +136,50 @@ export const initialCustomers: Customer[] = [
     onuMacAddress: 'AA:BB:CC:DD:EE:04',
     ipAddress: '192.168.1.104',
   },
+  {
+    id: 'cust_5',
+    name: 'Eko Prasetyo',
+    address: 'Jl. Mawar No. 12, Medan',
+    phoneNumber: '081298765432',
+    email: 'eko.p@example.com',
+    wifiPackage: '10 Mbps',
+    joinDate: new Date('2024-07-05').toISOString(),
+    billingCycleDay: 5,
+    status: 'baru', // New customer, payment might be pending for first bill
+    paymentHistory: [
+      {
+        id: 'pay_8',
+        paymentDate: new Date('2024-07-06').toISOString(),
+        amount: 100000,
+        periodStart: new Date('2024-07-05').toISOString(),
+        periodEnd: new Date('2024-08-04').toISOString(),
+        paymentMethod: 'transfer',
+        paymentStatus: 'pending_konfirmasi',
+        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiEkoBaru',
+        notes: 'Pembayaran tagihan pertama.'
+      }
+    ],
+    notes: 'Pelanggan baru.',
+    onuMacAddress: 'AA:BB:CC:DD:EE:05',
+    ipAddress: '192.168.1.105',
+  }
 ];
 
-export const findCustomerById = (id: string): Customer | undefined => {
-  // In a real app, this would be an API call.
-  // For mock, we need to handle updates if we modify customers in React state.
-  // This function currently only returns from initialCustomers.
-  // If state is managed globally (e.g. Zustand, Redux, or React Context higher up),
-  // this function might need to access that state or be replaced by state selectors.
-  // For now, Pelanggan[Id] pages will manage their own copy of customer data after fetch.
-  return initialCustomers.find(customer => customer.id === id);
+// Function to get a deep copy of initial customers
+export const getInitialCustomers = (): Customer[] => {
+  return JSON.parse(JSON.stringify(initialCustomers));
 };
 
-// Helper function to get all payments from all customers
-export const getAllPayments = (): (Payment & { customerId: string, customerName: string })[] => {
+
+export const findCustomerById = (id: string, customersData?: Customer[]): Customer | undefined => {
+  const source = customersData || initialCustomers;
+  return source.find(customer => customer.id === id);
+};
+
+// Helper function to get all payments from a given set of customers
+export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & { customerId: string, customerName: string })[] => {
   const allPayments: (Payment & { customerId: string, customerName: string })[] = [];
-  initialCustomers.forEach(customer => {
+  customers.forEach(customer => {
     customer.paymentHistory.forEach(payment => {
       allPayments.push({
         ...payment,
@@ -162,3 +190,8 @@ export const getAllPayments = (): (Payment & { customerId: string, customerName:
   });
   return allPayments.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
 };
+
+// Initial fetcher using the static data
+export const getAllPayments = (): (Payment & { customerId: string, customerName: string })[] => {
+    return getAllPaymentsFromCustomers(initialCustomers);
+}
