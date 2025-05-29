@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -16,6 +17,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription as ShadcnFormDescription, // Renamed to avoid conflict
   FormField,
   FormItem,
   FormLabel,
@@ -39,6 +41,7 @@ import { format, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
 const customerFormSchema = z.object({
+  id: z.string().min(3, { message: 'ID Pelanggan minimal 3 karakter.' }).max(50, {message: 'ID Pelanggan maksimal 50 karakter.'}),
   name: z.string().min(3, { message: 'Nama minimal 3 karakter.' }).max(100),
   address: z.string().min(5, { message: 'Alamat minimal 5 karakter.' }).max(255),
   phoneNumber: z.string().min(10, { message: 'Nomor telepon minimal 10 digit.' }).max(15)
@@ -57,7 +60,7 @@ const customerFormSchema = z.object({
   routerPassword: z.string().optional().or(z.literal('')),
 });
 
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
+export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 const defaultWifiPackages = ["5 Mbps", "10 Mbps", "20 Mbps", "30 Mbps", "50 Mbps", "100 Mbps", "Custom"];
 const customerStatuses: CustomerStatus[] = ['baru', 'aktif', 'nonaktif', 'isolir', 'berhenti'];
@@ -79,6 +82,7 @@ export default function CustomerFormDialog({
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
+      id: '',
       name: '',
       address: '',
       phoneNumber: '',
@@ -100,12 +104,14 @@ export default function CustomerFormDialog({
     if (customerToEdit) {
       form.reset({
         ...customerToEdit,
+        id: customerToEdit.id,
         joinDate: customerToEdit.joinDate ? parseISO(customerToEdit.joinDate) : new Date(),
         installationDate: customerToEdit.installationDate ? parseISO(customerToEdit.installationDate) : undefined,
         billingCycleDay: customerToEdit.billingCycleDay || 1,
       });
     } else {
       form.reset({
+        id: '',
         name: '',
         address: '',
         phoneNumber: '',
@@ -122,16 +128,13 @@ export default function CustomerFormDialog({
         routerPassword: '',
       });
     }
-  }, [customerToEdit, form, isOpen]); // Added isOpen to reset form when dialog opens
+  }, [customerToEdit, form, isOpen]);
 
   const handleSubmit = (values: CustomerFormValues) => {
-     // Convert dates back to ISO strings before submitting if needed by the parent
-    const submissionData = {
-        ...values,
-        joinDate: values.joinDate.toISOString(),
-        installationDate: values.installationDate ? values.installationDate.toISOString() : undefined,
-    };
-    onSubmit(submissionData as any); // Casting because parent expects Customer like structure
+    // Dates are already Date objects from the form.
+    // The parent's handleSaveCustomer will receive CustomerFormValues.
+    // The parent will then convert Date objects to ISO strings if needed for its state.
+    onSubmit(values);
   };
 
   return (
@@ -147,6 +150,24 @@ export default function CustomerFormDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            
+            <FormField
+              control={form.control}
+              name="id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ID Pelanggan</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Contoh: cust_xyz001" {...field} disabled={!!customerToEdit} />
+                  </FormControl>
+                  <ShadcnFormDescription>
+                    ID ini akan digunakan pelanggan untuk login. Tidak dapat diubah setelah dibuat.
+                  </ShadcnFormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -434,3 +455,8 @@ export default function CustomerFormDialog({
     </Dialog>
   );
 }
+
+// Renaming Shadcn's FormDescription to avoid conflict with local variable.
+export { FormDescription as ShadcnFormDescription } from '@/components/ui/form';
+
+    

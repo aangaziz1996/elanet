@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button';
 import type { Customer } from '@/types/customer';
 import { CustomerDataTable } from '@/components/customer/customer-data-table';
 import { columns as customerColumns } from '@/components/customer/customer-table-columns';
-import CustomerFormDialog from '@/components/customer/customer-form-dialog';
+import CustomerFormDialog, { type CustomerFormValues } from '@/components/customer/customer-form-dialog';
 import { initialCustomers as allCustomers } from '@/lib/mock-data'; // Import from mock-data
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminPelangganPage() {
   const [customers, setCustomers] = React.useState<Customer[]>(allCustomers);
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [editingCustomer, setEditingCustomer] = React.useState<Customer | null>(null);
+  const { toast } = useToast();
 
   const handleAddCustomer = () => {
     setEditingCustomer(null);
@@ -28,22 +30,59 @@ export default function AdminPelangganPage() {
   const handleDeleteCustomer = (customerId: string) => {
     // Add confirmation dialog here in a real app
     setCustomers(customers.filter((c) => c.id !== customerId));
+    toast({
+        title: "Pelanggan Dihapus",
+        description: `Pelanggan dengan ID ${customerId} telah dihapus (secara lokal).`,
+        variant: "destructive"
+    });
     // Note: This only updates the local state. In a real app, you'd persist this change.
   };
 
-  const handleSaveCustomer = (customerData: Omit<Customer, 'id' | 'paymentHistory'> | Customer) => {
-    if ('id' in customerData && customerData.id) {
+  const handleSaveCustomer = (customerData: CustomerFormValues) => {
+    if (editingCustomer && editingCustomer.id) {
       // Editing existing customer
-      setCustomers(customers.map((c) => (c.id === customerData.id ? { ...c, ...customerData } : c)));
+      // The customerData.id from the form should be the same as editingCustomer.id because the field is disabled.
+      setCustomers(
+        customers.map((c) =>
+          c.id === editingCustomer.id
+            ? { 
+                ...c, // Keep existing fields like paymentHistory
+                ...customerData, // Apply form values
+                joinDate: customerData.joinDate.toISOString(), // Convert Date to ISO string
+                installationDate: customerData.installationDate?.toISOString(), // Convert Date to ISO string
+              }
+            : c
+        )
+      );
+      toast({
+        title: "Pelanggan Diperbarui",
+        description: `Data pelanggan ${customerData.name} telah diperbarui.`,
+      });
     } else {
-      // Adding new customer
-      const newId = `cust_${Math.random().toString(36).substring(2, 9)}`;
-      const newCustomerWithId = { ...customerData, id: newId, paymentHistory: customerData.paymentHistory || [] };
-      setCustomers([...customers, newCustomerWithId]);
+      // Adding new customer. customerData.id is the new ID from the form.
+      // Check if ID already exists
+      if (customers.some(c => c.id === customerData.id)) {
+        toast({
+          title: "Error: ID Pelanggan Duplikat",
+          description: `ID Pelanggan "${customerData.id}" sudah digunakan. Silakan gunakan ID lain.`,
+          variant: "destructive",
+        });
+        return; // Prevent adding customer
+      }
+      
+      const newCustomer: Customer = {
+        ...customerData,
+        id: customerData.id, // This is from the form
+        joinDate: customerData.joinDate.toISOString(), // Convert Date to ISO string
+        installationDate: customerData.installationDate?.toISOString(), // Convert Date to ISO string
+        paymentHistory: [], // Initialize with empty payment history
+      };
+      setCustomers([...customers, newCustomer]);
+      toast({
+        title: "Pelanggan Ditambahkan",
+        description: `Pelanggan baru ${newCustomer.name} dengan ID ${newCustomer.id} telah ditambahkan.`,
+      });
     }
-    // Note: This only updates the local state. In a real app, you'd persist this change.
-    // Also, initialCustomers in lib/mock-data.ts won't be updated by this action.
-    // For a persistent demo, you might need to manage initialCustomers state more globally or use localStorage for it too.
     setIsFormOpen(false);
     setEditingCustomer(null);
   };
@@ -77,3 +116,5 @@ export default function AdminPelangganPage() {
     </div>
   );
 }
+
+    
