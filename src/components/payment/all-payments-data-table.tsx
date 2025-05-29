@@ -31,7 +31,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuLabel,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  DropdownMenuItem // Added import
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, Filter } from 'lucide-react';
 import type { Payment } from '@/types/customer';
