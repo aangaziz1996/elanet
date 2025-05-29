@@ -5,7 +5,7 @@ export interface Payment {
   amount: number;
   periodStart: string; // ISO date string
   periodEnd: string; // ISO date string
-  // proofOfPaymentUrl?: string; // Dihapus
+  // proofOfPaymentUrl?: string; // Dihapus karena tidak dipakai lagi
   signatureDataUrl?: string; // For digital signature, e.g., "Ditandatangani oleh: Nama Jelas"
   paymentMethod?: 'tunai_kolektor' | 'transfer' | 'online' | 'other';
   notes?: string;

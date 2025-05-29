@@ -5,23 +5,31 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Payment } from '@/types/customer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Edit } from 'lucide-react';
-import { format } from 'date-fns';
+import { ArrowUpDown, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Edit2, MoreVertical } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-// import Image from 'next/image'; // Dihapus
-// import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Dihapus
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 export type PaymentWithCustomerInfo = Payment & { 
-  customerId: string; 
+  customerId: string; // Custom ID
   customerName: string; 
+  customerFirestoreDocId?: string; // Firestore document ID of the customer
 };
 
 interface AllPaymentsTableColumnProps {
   onConfirmPayment: (paymentId: string, customerCustomId: string) => void;
   onRejectPayment: (paymentId: string, customerCustomId: string) => void;
+  onEditPayment: (payment: PaymentWithCustomerInfo) => void; // Added
 }
 
 const getPaymentStatusBadgeVariant = (status: Payment['paymentStatus']): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -54,7 +62,7 @@ const getPaymentStatusIcon = (status: Payment['paymentStatus']): React.ElementTy
 };
 
 
-export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableColumnProps): ColumnDef<PaymentWithCustomerInfo>[] => [
+export const columns = ({ onConfirmPayment, onRejectPayment, onEditPayment }: AllPaymentsTableColumnProps): ColumnDef<PaymentWithCustomerInfo>[] => [
   {
     accessorKey: 'customerName',
     header: ({ column }) => (
@@ -88,7 +96,7 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
     ),
     cell: ({ row }) => {
       const date = row.getValue('paymentDate');
-      return date ? format(new Date(date as string), 'dd MMM yyyy', { locale: localeId }) : '-';
+      return date ? format(parseISO(date as string), 'dd MMM yyyy', { locale: localeId }) : '-';
     },
   },
   {
@@ -98,7 +106,7 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       const periodStart = row.original.periodStart;
       const periodEnd = row.original.periodEnd;
       return periodStart && periodEnd 
-        ? `${format(new Date(periodStart), 'dd/MM/yy', { locale: localeId })} - ${format(new Date(periodEnd), 'dd/MM/yy', { locale: localeId })}`
+        ? `${format(parseISO(periodStart), 'dd/MM/yy', { locale: localeId })} - ${format(parseISO(periodEnd), 'dd/MM/yy', { locale: localeId })}`
         : '-';
     },
   },
@@ -137,53 +145,6 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       return value.includes(row.getValue(id) as string);
     }
   },
-  // { // Dihapus kolom bukti
-  //   accessorKey: 'proofOfPaymentUrl',
-  //   header: 'Bukti',
-  //   cell: ({ row }) => {
-  //     const { toast } = useToast();
-  //     const proofUrl = row.getValue('proofOfPaymentUrl') as string | undefined;
-  //     if (!proofUrl) return '-';
-      
-  //     if (proofUrl.startsWith('data:image')) {
-  //       return (
-  //         <Popover>
-  //           <PopoverTrigger asChild>
-  //             <Button variant="link" size="sm" className="h-auto p-0 text-primary hover:underline">
-  //               <Eye className="mr-1 h-3 w-3" /> Lihat Gambar
-  //             </Button>
-  //           </PopoverTrigger>
-  //           <PopoverContent className="w-auto p-0">
-  //             {/* eslint-disable-next-line @next/next/no-img-element */}
-  //             <img src={proofUrl} alt="Bukti Pembayaran" style={{maxWidth: '300px', maxHeight: '400px', objectFit: 'contain'}} className="rounded-md" />
-  //           </PopoverContent>
-  //         </Popover>
-  //       );
-  //     }
-      
-  //     const isHttpUrl = proofUrl.startsWith('http://') || proofUrl.startsWith('https://');
-  //     const isPlaceholderCo = proofUrl.startsWith('https://placehold.co');
-
-  //     return (
-  //       <Button 
-  //           variant="link" 
-  //           size="sm" 
-  //           className="h-auto p-0"
-  //           onClick={(e) => {
-  //               if (isHttpUrl || isPlaceholderCo) { 
-  //                   window.open(proofUrl, '_blank');
-  //               } else { 
-  //                    e.preventDefault();
-  //                    toast({ title: "Info Bukti Pembayaran", description: `File: ${proofUrl}`});
-  //               }
-  //           }}
-  //       >
-  //           <Eye className="mr-1 h-3 w-3" /> 
-  //           {isHttpUrl || isPlaceholderCo ? 'Lihat Tautan' : 'Lihat Info'}
-  //       </Button>
-  //     );
-  //   },
-  // },
   {
     accessorKey: 'signatureDataUrl',
     header: 'Tanda Tangan',
@@ -192,7 +153,7 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       if (!signature) return '-';
       return (
         <div className="text-xs text-muted-foreground italic flex items-center gap-1" title={signature}>
-            <Edit className="h-3 w-3 flex-shrink-0" /> 
+            <Edit2 className="h-3 w-3 flex-shrink-0" /> 
             <span className="truncate">
                 {signature.split(': ')[1] || signature}
             </span>
@@ -205,31 +166,38 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
     header: () => <div className="text-center">Aksi</div>,
     cell: ({ row }) => {
       const payment = row.original;
-      if (payment.paymentStatus === 'pending_konfirmasi') {
-        return (
-          <div className="flex justify-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-green-600 hover:text-green-700 hover:bg-green-100 h-8 px-2"
-              onClick={() => onConfirmPayment(payment.id, payment.customerId)}
-              title="Konfirmasi Pembayaran"
-            >
-              <ThumbsUp className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-red-600 hover:text-red-700 hover:bg-red-100 h-8 px-2"
-              onClick={() => onRejectPayment(payment.id, payment.customerId)}
-              title="Tolak Pembayaran"
-            >
-              <ThumbsDown className="h-4 w-4" />
-            </Button>
-          </div>
-        );
-      }
-      return <div className="text-center">-</div>;
+      return (
+        <div className="flex justify-center items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Buka menu</span>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Aksi Pembayaran</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onEditPayment(payment)}>
+                <Edit2 className="mr-2 h-4 w-4" />
+                Edit Pembayaran
+              </DropdownMenuItem>
+              {payment.paymentStatus === 'pending_konfirmasi' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onConfirmPayment(payment.id, payment.customerId)} className="text-green-600 focus:text-green-700 focus:bg-green-100">
+                    <ThumbsUp className="mr-2 h-4 w-4" />
+                    Konfirmasi
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onRejectPayment(payment.id, payment.customerId)} className="text-red-600 focus:text-red-700 focus:bg-red-100">
+                    <ThumbsDown className="mr-2 h-4 w-4" />
+                    Tolak
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
     },
   },
 ];
