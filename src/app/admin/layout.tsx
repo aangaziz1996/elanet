@@ -18,7 +18,7 @@ import { Users, CreditCard, MessageSquare, Settings, LayoutDashboard, Wifi, LogO
 import { Button } from '@/components/ui/button';
 import { usePathname, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // Added for potential user display
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +27,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
+import { auth } from '@/lib/firebase'; // Firebase auth instance
+import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -45,34 +46,45 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const { toast } = useToast();
+  const [authUser, setAuthUser] = React.useState<FirebaseUser | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
   React.useEffect(() => {
-    const isAdminLoggedIn = localStorage.getItem('isAdminLoggedIn');
-    if (isAdminLoggedIn === 'true') {
-      setIsAuthenticated(true);
-    } else {
-      // Allow access to login page itself if we were to include it in this layout (not current case)
-      // For now, any path under /admin that isn't logged in gets redirected.
-      if (pathname !== '/login/admin') { // Ensure we don't redirect from the login page itself if it somehow fell under this layout
-         router.replace('/login/admin');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setAuthUser(user);
+        // You might want to verify if this user is an admin, e.g., via custom claims or a Firestore check.
+        // For this example, any authenticated Firebase user is considered an admin.
       } else {
-        // If it's the login page and somehow using this layout, just mark as not loading
-        // This scenario is unlikely with current setup.
+        setAuthUser(null);
+        // Only redirect if not already on the login page
+        if (pathname !== '/login/admin') {
+            router.replace('/login/admin');
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [pathname, router]);
 
-  const handleAdminLogout = () => {
-    localStorage.removeItem('isAdminLoggedIn');
-    setIsAuthenticated(false);
-    toast({
-      title: 'Logout Admin Berhasil',
-      description: 'Anda telah keluar dari sesi admin.',
-    });
-    router.push('/login/admin');
+  const handleAdminLogout = async () => {
+    try {
+      await signOut(auth);
+      setAuthUser(null); // Clear local auth user state
+      toast({
+        title: 'Logout Admin Berhasil',
+        description: 'Anda telah keluar dari sesi admin.',
+      });
+      router.push('/login/admin'); // Redirect to login page
+    } catch (error) {
+      console.error("Admin logout error:", error);
+      toast({
+        title: 'Gagal Logout',
+        description: 'Terjadi kesalahan saat mencoba logout.',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (isLoading) {
@@ -84,14 +96,25 @@ export default function AdminLayout({
     );
   }
 
-  // If not authenticated and done loading, the redirect should have happened.
-  // But as a safeguard, prevent rendering children.
-  if (!isAuthenticated && pathname !== '/login/admin') {
-     // This check helps prevent flash of content if redirect is slow or if effect hasn't run.
-     // Router.replace should handle it, but good for robustness.
-    return (
+  // If not authenticated (authUser is null) and not loading, and not on login page,
+  // the onAuthStateChanged effect should have redirected.
+  // This is an additional safeguard or can cover edge cases.
+  if (!authUser && pathname !== '/login/admin') {
+     return (
          <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
             <p className="text-muted-foreground">Mengarahkan ke halaman login admin...</p>
+        </div>
+    );
+  }
+
+  // If on login page but somehow authenticated, redirect to dashboard
+  if (authUser && pathname === '/login/admin') {
+    router.replace('/admin/dashboard');
+    return ( // Show loader while redirecting
+         <div className="flex items-center justify-center min-h-screen">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-muted-foreground">Mengarahkan ke dashboard...</p>
         </div>
     );
   }
@@ -150,13 +173,13 @@ export default function AdminLayout({
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                        <AvatarImage src="https://placehold.co/40x40.png?text=A" alt="Admin" data-ai-hint="avatar person" />
-                        <AvatarFallback>A</AvatarFallback>
+                        <AvatarImage src={authUser?.photoURL || "https://placehold.co/40x40.png?text=A"} alt={authUser?.displayName || authUser?.email || "Admin"} data-ai-hint="avatar person" />
+                        <AvatarFallback>{authUser?.email?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                     </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Admin Akun</DropdownMenuLabel>
+                    <DropdownMenuLabel>{authUser?.email || 'Admin Akun'}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => router.push('/admin/pengaturan')}>
                         <Settings className="mr-2 h-4 w-4" />
@@ -171,7 +194,8 @@ export default function AdminLayout({
             </DropdownMenu>
           </header>
           <main className="flex-1 p-4 sm:px-6 sm:py-0 md:gap-8 overflow-auto">
-            {isAuthenticated ? children : null /* Render children only if authenticated */}
+            {/* Render children only if authenticated firebase user exists and not loading */}
+            {authUser && !isLoading ? children : null}
           </main>
         </SidebarInset>
       </div>

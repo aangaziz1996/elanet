@@ -10,44 +10,59 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ShieldCheck, LogIn } from 'lucide-react';
-
-// Credentials for mock admin login
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "password";
+import { signInWithEmailAndPassword } from "firebase/auth"; // Firebase Auth
+import { auth } from '@/lib/firebase'; // Firebase auth instance
 
 export default function AdminLoginPage() {
-  const [username, setUsername] = React.useState('');
+  const [email, setEmail] = React.useState(''); // Changed username to email
   const [password, setPassword] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogin = (event: React.FormEvent) => {
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      localStorage.setItem('isAdminLoggedIn', 'true');
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: 'Login Admin Berhasil',
         description: 'Selamat datang, Admin!',
       });
-      router.push('/admin/dashboard');
-    } else {
+      // AdminLayout will handle redirection based on auth state
+      // No need to explicitly push, but good for immediate feedback if desired
+      // router.push('/admin/dashboard');
+      // Forcing a reload or relying on AdminLayout's auth check to redirect
+      router.replace('/admin/dashboard'); 
+    } catch (error: any) {
+      let errorMessage = 'Username atau password admin salah.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        errorMessage = 'Email atau password admin salah.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Format email tidak valid.';
+      }
+      console.error("Admin login error:", error);
       toast({
         title: 'Login Gagal',
-        description: 'Username atau password admin salah.',
+        description: errorMessage,
         variant: 'destructive',
       });
       setIsLoading(false);
     }
+    // setIsLoading(false); // Moved inside catch for error case, success case redirects
   };
 
   React.useEffect(() => {
-    // If admin is already logged in, redirect to dashboard
-    if (localStorage.getItem('isAdminLoggedIn') === 'true') {
-      router.replace('/admin/dashboard');
-    }
+    // Check if admin is already logged in via Firebase Auth
+    // This redirection is primarily handled by AdminLayout now,
+    // but this can prevent a flash of the login page if user is already authenticated.
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        router.replace('/admin/dashboard');
+      }
+    });
+    return () => unsubscribe();
   }, [router]);
 
   return (
@@ -59,18 +74,23 @@ export default function AdminLoginPage() {
             Login Admin ELANET
           </CardTitle>
           <CardDescription>
-            Masukkan kredensial admin untuk mengakses dashboard.
+            Masukkan email dan password admin untuk mengakses dashboard.
+            <br />
+            <span className="text-xs text-muted-foreground">
+              (Pastikan Anda telah membuat akun admin di Firebase Authentication).
+            </span>
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username admin"
+                id="email"
+                type="email" // Changed type to email
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@example.com"
                 required
                 disabled={isLoading}
               />
@@ -87,9 +107,6 @@ export default function AdminLoginPage() {
                 disabled={isLoading}
               />
             </div>
-            <p className="text-xs text-muted-foreground text-center pt-2">
-              (Untuk demo: username: <strong>admin</strong>, password: <strong>password</strong>)
-            </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
