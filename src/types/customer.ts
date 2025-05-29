@@ -19,10 +19,11 @@ export interface Customer {
   // Note: Firestore document ID will be different from this 'id' field.
   // This 'id' is the customer-facing ID used for login, etc.
   id: string; 
+  firebaseUID?: string; // Firebase Authentication User ID
   name: string;
   address: string;
   phoneNumber: string;
-  email?: string;
+  email?: string; // This email might be the one used for Firebase Auth
   wifiPackage: string; // e.g., "10 Mbps", "20 Mbps", "Custom"
   joinDate: string; // ISO date string, Firestore will store as Timestamp
   installationDate?: string; // ISO date string, Firestore will store as Timestamp

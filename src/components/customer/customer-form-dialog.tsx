@@ -42,6 +42,7 @@ import { id as localeId } from 'date-fns/locale';
 
 const customerFormSchema = z.object({
   id: z.string().min(3, { message: 'ID Pelanggan minimal 3 karakter.' }).max(50, {message: 'ID Pelanggan maksimal 50 karakter.'}),
+  firebaseUID: z.string().max(128, {message: "Firebase UID terlalu panjang."}).optional().or(z.literal('')),
   name: z.string().min(3, { message: 'Nama minimal 3 karakter.' }).max(100),
   address: z.string().min(5, { message: 'Alamat minimal 5 karakter.' }).max(255),
   phoneNumber: z.string().min(10, { message: 'Nomor telepon minimal 10 digit.' }).max(15)
@@ -83,6 +84,7 @@ export default function CustomerFormDialog({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
       id: '',
+      firebaseUID: '',
       name: '',
       address: '',
       phoneNumber: '',
@@ -105,6 +107,7 @@ export default function CustomerFormDialog({
       form.reset({
         ...customerToEdit,
         id: customerToEdit.id,
+        firebaseUID: customerToEdit.firebaseUID || '',
         joinDate: customerToEdit.joinDate ? parseISO(customerToEdit.joinDate) : new Date(),
         installationDate: customerToEdit.installationDate ? parseISO(customerToEdit.installationDate) : undefined,
         billingCycleDay: customerToEdit.billingCycleDay || 1,
@@ -112,6 +115,7 @@ export default function CustomerFormDialog({
     } else {
       form.reset({
         id: '',
+        firebaseUID: '',
         name: '',
         address: '',
         phoneNumber: '',
@@ -131,9 +135,6 @@ export default function CustomerFormDialog({
   }, [customerToEdit, form, isOpen]);
 
   const handleSubmit = (values: CustomerFormValues) => {
-    // Dates are already Date objects from the form.
-    // The parent's handleSaveCustomer will receive CustomerFormValues.
-    // The parent will then convert Date objects to ISO strings if needed for its state.
     onSubmit(values);
   };
 
@@ -156,12 +157,29 @@ export default function CustomerFormDialog({
               name="id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID Pelanggan</FormLabel>
+                  <FormLabel>ID Pelanggan (Custom)</FormLabel>
                   <FormControl>
                     <Input placeholder="Contoh: cust_xyz001" {...field} disabled={!!customerToEdit} />
                   </FormControl>
                   <ShadcnFormDescription>
-                    ID ini akan digunakan pelanggan untuk login. Tidak dapat diubah setelah dibuat.
+                    ID unik internal untuk referensi. Tidak dapat diubah setelah dibuat.
+                  </ShadcnFormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="firebaseUID"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Firebase User ID (UID)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="UID dari Firebase Authentication" {...field} />
+                  </FormControl>
+                  <ShadcnFormDescription>
+                    Link ke akun Firebase Authentication pelanggan. Diperlukan agar pelanggan bisa login.
                   </ShadcnFormDescription>
                   <FormMessage />
                 </FormItem>
@@ -217,10 +235,11 @@ export default function CustomerFormDialog({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email (Opsional)</FormLabel>
+                    <FormLabel>Email (Pelanggan)</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="email@example.com" {...field} />
                     </FormControl>
+                     <ShadcnFormDescription>Email ini sebaiknya sama dengan email login Firebase pelanggan.</ShadcnFormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -231,7 +250,7 @@ export default function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paket WiFi</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih paket WiFi" />
@@ -354,7 +373,7 @@ export default function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Pelanggan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status" />
@@ -458,5 +477,3 @@ export default function CustomerFormDialog({
 
 // Renaming Shadcn's FormDescription to avoid conflict with local variable.
 export { FormDescription as ShadcnFormDescription } from '@/components/ui/form';
-
-    
