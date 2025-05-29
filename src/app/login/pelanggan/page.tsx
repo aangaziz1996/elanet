@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { findCustomerById } from '@/lib/mock-data';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { LogIn } from 'lucide-react';
+import { validateCustomerLoginAction } from './actions'; // Import server action
 
 export default function PelangganLoginPage() {
   const [customerId, setCustomerId] = React.useState('');
@@ -18,25 +18,31 @@ export default function PelangganLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleLogin = (event: React.FormEvent) => {
+  React.useEffect(() => {
+    // Optional: If already logged in via localStorage, redirect
+    const loggedInId = localStorage.getItem('loggedInCustomerId');
+    if (loggedInId) {
+      router.replace(`/pelanggan/${loggedInId}/dashboard`);
+    }
+  }, [router]);
+
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setIsLoading(true);
 
-    // In a real app, you would call an API to authenticate the user.
-    // For this mock, we'll just check if the customer ID exists.
-    const customer = findCustomerById(customerId);
+    const result = await validateCustomerLoginAction(customerId);
 
-    if (customer) {
-      localStorage.setItem('loggedInCustomerId', customer.id);
+    if (result.success && result.customer) {
+      localStorage.setItem('loggedInCustomerId', result.customer.id);
       toast({
         title: 'Login Berhasil',
-        description: `Selamat datang kembali, ${customer.name}!`,
+        description: `Selamat datang kembali, ${result.customer.name}!`,
       });
-      router.push(`/pelanggan/${customer.id}/dashboard`);
+      router.push(`/pelanggan/${result.customer.id}/dashboard`);
     } else {
       toast({
         title: 'Login Gagal',
-        description: 'ID Pelanggan tidak ditemukan. Silakan coba lagi.',
+        description: result.message || 'ID Pelanggan tidak ditemukan atau terjadi kesalahan.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -68,14 +74,9 @@ export default function PelangganLoginPage() {
                 disabled={isLoading}
               />
             </div>
-            {/* Password field can be added here for a more complete mock or real auth */}
-            {/* <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="Password Anda" required disabled={isLoading} />
-            </div> */}
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || !customerId.trim()}>
               {isLoading ? 'Memproses...' : 'Login'}
             </Button>
             <Button variant="link" size="sm" asChild>

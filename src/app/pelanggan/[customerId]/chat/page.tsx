@@ -7,8 +7,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+// import { getCustomerDetailsAction } from './actions'; // Assuming actions.ts is in the same [customerId] folder
+// import type { Customer } from '@/types/customer'; // If needed for customer context
 
 interface ChatMessage {
   id: string;
@@ -17,14 +19,21 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-export default function PelangganChatPage() {
+// Props for page components that might receive data from layout
+// interface PelangganPageProps {
+//   customerDataFromLayout?: Customer | null;
+// }
+
+export default function PelangganChatPage(/*{ customerDataFromLayout }: PelangganPageProps*/) {
   const params = useParams();
   const router = useRouter();
   const customerId = params.customerId as string;
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = React.useState(true); // For initial auth check
+  // const [customer, setCustomer] = React.useState<Customer | null>(customerDataFromLayout || null);
+  const [isAuthLoading, setIsAuthLoading] = React.useState(true); // For initial auth check
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = React.useState('');
+  const [isSending, setIsSending] = React.useState(false);
 
   React.useEffect(() => {
     const loggedInId = localStorage.getItem('loggedInCustomerId');
@@ -36,12 +45,13 @@ export default function PelangganChatPage() {
     setMessages([
         { id: '1', sender: 'admin', text: 'Halo! Ada yang bisa kami bantu?', timestamp: new Date(Date.now() - 60000 * 5) },
     ]);
-    setIsLoading(false);
+    setIsAuthLoading(false);
   }, [customerId, router]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() === '') return;
+    if (newMessage.trim() === '' || isSending) return;
+    setIsSending(true);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -61,12 +71,14 @@ export default function PelangganChatPage() {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, adminResponse]);
+      setIsSending(false);
     }, 1500);
     
-    toast({
-        title: "Pesan Terkirim (Demo)",
-        description: "Admin akan segera merespons pesan Anda."
-    })
+    // Toast for sending is optional, can be annoying for chat
+    // toast({
+    //     title: "Pesan Terkirim (Demo)",
+    //     description: "Admin akan segera merespons pesan Anda."
+    // })
   };
   
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -80,8 +92,13 @@ export default function PelangganChatPage() {
   }, [messages]);
 
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]"><p>Memuat chat...</p></div>;
+  if (isAuthLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
+            <p>Memverifikasi sesi dan memuat chat...</p>
+        </div>
+    );
   }
 
   return (
@@ -109,6 +126,14 @@ export default function PelangganChatPage() {
                 </div>
                 </div>
             ))}
+             {isSending && messages[messages.length-1]?.sender === 'user' && (
+                <div className="flex justify-end">
+                     <div className="max-w-[70%] p-3 rounded-lg flex items-center">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+                        <span className="text-xs text-muted-foreground">Mengirim...</span>
+                    </div>
+                </div>
+            )}
             </CardContent>
         </ScrollArea>
         <CardFooter className="border-t pt-4">
@@ -119,9 +144,10 @@ export default function PelangganChatPage() {
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               className="flex-1"
+              disabled={isSending}
             />
-            <Button type="submit" size="icon" disabled={!newMessage.trim()}>
-              <Send className="h-4 w-4" />
+            <Button type="submit" size="icon" disabled={!newMessage.trim() || isSending}>
+              {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               <span className="sr-only">Kirim</span>
             </Button>
           </form>
@@ -129,7 +155,7 @@ export default function PelangganChatPage() {
       </Card>
         <div className="mt-4 bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-3 rounded-md text-sm">
             <p className="font-bold">Fitur Chat (Demo)</p>
-            <p>Ini adalah simulasi fitur chat. Pesan tidak benar-benar terkirim ke admin.</p>
+            <p>Ini adalah simulasi fitur chat. Pesan tidak benar-benar terkirim ke admin atau disimpan di database.</p>
         </div>
     </div>
   );

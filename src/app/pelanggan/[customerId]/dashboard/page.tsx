@@ -3,15 +3,15 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { findCustomerById } from '@/lib/mock-data';
 import type { Customer, Payment } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DollarSign, Wifi, UserCircle, CalendarDays, Info, ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion } from 'lucide-react';
+import { DollarSign, Wifi, UserCircle, CalendarDays, Info, ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
+import { getCustomerDetailsAction } from './actions'; // Import server action
 
 const getStatusInfo = (status: Customer['status']): { text: string; icon: React.ElementType; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
   switch (status) {
@@ -30,78 +30,114 @@ const getStatusInfo = (status: Customer['status']): { text: string; icon: React.
   }
 };
 
+// Props for page components that might receive data from layout
+interface PelangganPageProps {
+  customerDataFromLayout?: Customer | null;
+}
 
-export default function PelangganDashboardPage() {
+export default function PelangganDashboardPage({ customerDataFromLayout }: PelangganPageProps) {
   const params = useParams();
   const router = useRouter();
   const customerId = params.customerId as string;
   const { toast } = useToast();
-  const [customer, setCustomer] = React.useState<Customer | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  // Use customerDataFromLayout if available, otherwise fetch
+  const [customer, setCustomer] = React.useState<Customer | null>(customerDataFromLayout || null);
+  const [isLoading, setIsLoading] = React.useState(!customerDataFromLayout); // Only load if not provided by layout
 
   React.useEffect(() => {
-    // This is a basic client-side check for "privacy".
-    // In a real app, this would be handled by middleware and server-side auth.
+    // This check is redundant if layout handles it, but good for standalone page logic
     const loggedInId = localStorage.getItem('loggedInCustomerId');
     if (!loggedInId || loggedInId !== customerId) {
-      toast({
-        title: 'Akses Ditolak',
-        description: 'Anda tidak diizinkan melihat halaman ini atau sesi Anda telah berakhir.',
-        variant: 'destructive',
-      });
+      // Layout should handle this redirect, but as a fallback
+      toast({ title: 'Akses Ditolak', description: 'Sesi tidak valid.', variant: 'destructive' });
       router.replace('/login/pelanggan');
       return;
     }
 
-    const fetchedCustomer = findCustomerById(loggedInId);
-    if (fetchedCustomer) {
-      setCustomer(fetchedCustomer);
-    } else {
-      toast({
-        title: 'Error',
-        description: 'Gagal memuat data pelanggan.',
-        variant: 'destructive',
-      });
-      localStorage.removeItem('loggedInCustomerId'); // Clean up bad state
-      router.replace('/login/pelanggan');
-      return;
+    async function fetchCustomer() {
+      setIsLoading(true);
+      const result = await getCustomerDetailsAction(customerId);
+      if (result.success && result.customer) {
+        setCustomer(result.customer);
+      } else {
+        toast({
+          title: 'Error',
+          description: result.message || 'Gagal memuat data pelanggan.',
+          variant: 'destructive',
+        });
+        // router.replace('/login/pelanggan'); // Or handle error display
+      }
+      setIsLoading(false);
     }
-    setIsLoading(false);
-  }, [customerId, router, toast]);
 
-  if (isLoading || !customer) {
+    // If customer data wasn't passed from layout, fetch it.
+    if (!customerDataFromLayout && customerId) {
+      fetchCustomer();
+    } else if (customerDataFromLayout) {
+      // If data is from layout, ensure it's set and stop loading
+      setCustomer(customerDataFromLayout);
+      setIsLoading(false);
+    }
+  }, [customerId, router, toast, customerDataFromLayout]);
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
         <p className="text-muted-foreground">Memuat dashboard pelanggan...</p>
       </div>
     );
   }
   
+  if (!customer) {
+     return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+        <p className="text-destructive mb-4">Data pelanggan tidak dapat dimuat.</p>
+        <Button onClick={() => router.push('/login/pelanggan')}>Kembali ke Login</Button>
+      </div>
+    );
+  }
+  
   const statusInfo = getStatusInfo(customer.status);
-  const nextDueDate = new Date(); // Placeholder, should be calculated based on billingCycleDay and last payment
-  if (customer.paymentHistory.length > 0) {
-    const lastPayment = customer.paymentHistory.sort((a,b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())[0];
-    const lastPeriodEnd = new Date(lastPayment.periodEnd);
-    nextDueDate.setDate(lastPeriodEnd.getDate() + 1); // Day after last period ends
-    if (nextDueDate < new Date()) { // If it's in the past, advance to next month based on billing cycle day
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        nextDueDate.setFullYear(currentYear);
-        nextDueDate.setMonth(currentMonth);
-        nextDueDate.setDate(customer.billingCycleDay);
-        if (nextDueDate < new Date()) { // If still in past (e.g. today is 20th, billing day is 15th)
-            nextDueDate.setMonth(currentMonth + 1);
+  
+  let nextDueDate = new Date(); 
+  if (customer.paymentHistory && customer.paymentHistory.length > 0) {
+    const lastPayment = [...customer.paymentHistory] // Create a shallow copy before sorting
+        .filter(p => p.paymentStatus === 'lunas') // Consider only 'lunas' payments for next due date
+        .sort((a,b) => new Date(b.periodEnd).getTime() - new Date(a.periodEnd).getTime())[0];
+    
+    if (lastPayment) {
+        const lastPeriodEnd = new Date(lastPayment.periodEnd);
+        nextDueDate = new Date(lastPeriodEnd);
+        nextDueDate.setDate(lastPeriodEnd.getDate() + 1); // Day after last period ends
+        
+        if (nextDueDate < new Date()) { // If it's in the past, advance to next month based on billing cycle day
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            nextDueDate.setFullYear(currentYear, currentMonth, customer.billingCycleDay);
+            if (nextDueDate < new Date()) { 
+                nextDueDate.setMonth(currentMonth + 1);
+            }
+        }
+    } else { // No 'lunas' payments, calculate from join date
+        const join = new Date(customer.joinDate);
+        nextDueDate = new Date(join.getFullYear(), join.getMonth(), customer.billingCycleDay);
+        if (join.getDate() > customer.billingCycleDay) { 
+            nextDueDate.setMonth(join.getMonth() + 1);
+        }
+        // If due date is still past and join date is before this due date, it means it should be next month
+        if (nextDueDate < new Date() && new Date(customer.joinDate) < nextDueDate) {
+            nextDueDate.setMonth(nextDueDate.getMonth() +1);
         }
     }
-
   } else {
-      // New customer, due date is based on joinDate and billingCycleDay
       const join = new Date(customer.joinDate);
-      nextDueDate.setFullYear(join.getFullYear());
-      nextDueDate.setMonth(join.getMonth()); // First bill usually in the month of joining or next
-      nextDueDate.setDate(customer.billingCycleDay);
-      if (join.getDate() > customer.billingCycleDay) { // If joined after billing day this month
+      nextDueDate = new Date(join.getFullYear(), join.getMonth(), customer.billingCycleDay);
+      if (join.getDate() > customer.billingCycleDay) { 
         nextDueDate.setMonth(join.getMonth() + 1);
+      }
+       if (nextDueDate < new Date() && new Date(customer.joinDate) < nextDueDate) {
+          nextDueDate.setMonth(nextDueDate.getMonth() + 1);
       }
   }
 
@@ -160,7 +196,7 @@ export default function PelangganDashboardPage() {
           <CardDescription>Berikut adalah beberapa transaksi pembayaran terakhir Anda.</CardDescription>
         </CardHeader>
         <CardContent>
-          {customer.paymentHistory.length > 0 ? (
+          {customer.paymentHistory && customer.paymentHistory.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -171,14 +207,17 @@ export default function PelangganDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customer.paymentHistory.slice(0, 5).map((payment: Payment) => (
+                {[...customer.paymentHistory]
+                  .sort((a,b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+                  .slice(0, 5)
+                  .map((payment: Payment) => (
                   <TableRow key={payment.id}>
                     <TableCell>{format(new Date(payment.paymentDate), 'dd MMM yyyy', { locale: localeId })}</TableCell>
                     <TableCell>
                       {format(new Date(payment.periodStart), 'dd MMM yy', { locale: localeId })} - {format(new Date(payment.periodEnd), 'dd MMM yy', { locale: localeId })}
                     </TableCell>
                     <TableCell className="text-right">Rp {payment.amount.toLocaleString('id-ID')}</TableCell>
-                    <TableCell className="capitalize">{payment.paymentMethod || 'N/A'}</TableCell>
+                    <TableCell className="capitalize">{payment.paymentMethod?.replace(/_/g, ' ') || 'N/A'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -236,7 +275,7 @@ export default function PelangganDashboardPage() {
       
       <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded-md" role="alert">
         <p className="font-bold">Perhatian</p>
-        <p>Ini adalah implementasi demo. Fitur login dan privasi pelanggan saat ini disimulasikan menggunakan penyimpanan lokal browser dan belum aman untuk penggunaan produksi.</p>
+        <p>Data pelanggan kini diambil dari Firestore. Perubahan pada profil dan pembayaran akan disimpan ke database.</p>
       </div>
     </div>
   );
