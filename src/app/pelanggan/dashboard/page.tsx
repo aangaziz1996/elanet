@@ -12,6 +12,7 @@ import { DollarSign, Wifi, UserCircle, CalendarDays, Info, ShieldCheck, ShieldAl
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { User as FirebaseUser } from "firebase/auth"; // For props from layout
+import { getCustomerByFirebaseUIDAction } from '../actions'; // Import server action from parent directory
 
 const getStatusInfo = (status: Customer['status']): { text: string; icon: React.ElementType; variant: 'default' | 'secondary' | 'destructive' | 'outline' } => {
   switch (status) {
@@ -47,10 +48,14 @@ export default function PelangganDashboardPage({ customerDataFromLayout, firebas
   // We can add a check if data is missing from layout (which shouldn't happen if layout is correct)
   if (!firebaseUser || !customer) {
     // This should ideally be caught by the layout, but as a fallback
+    // Attempt to re-fetch if critical data is missing, could indicate a prop drilling issue or race condition
+    // This part is tricky because PelangganLayout should provide this. 
+    // If it's missing here, it indicates a deeper issue with PelangganLayout's data fetching or state.
+    // For now, show a loader and let PelangganLayout handle the redirection if auth fails.
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-        <p className="text-muted-foreground">Data pelanggan tidak tersedia. Memuat ulang...</p>
+        <p className="text-muted-foreground">Memuat data pelanggan...</p>
       </div>
     );
   }
@@ -235,3 +240,5 @@ export default function PelangganDashboardPage({ customerDataFromLayout, firebas
     </div>
   );
 }
+
+    
