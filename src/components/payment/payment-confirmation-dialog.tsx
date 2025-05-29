@@ -82,7 +82,7 @@ export default function PaymentConfirmationDialog({
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
   
   // Determine visibility based on payment method
-  const showProofUpload = paymentMethod === 'transfer' || (paymentMethod === 'other' && !form.getValues('signatureText')); // Show for 'other' if signature isn't primary
+  const showProofUpload = paymentMethod === 'transfer' || paymentMethod === 'tunai_kolektor' || (paymentMethod === 'other' && !form.getValues('signatureText'));
   const showSignatureInput = paymentMethod === 'tunai_kolektor';
   const isOnlinePayment = paymentMethod === 'online';
 
@@ -104,6 +104,34 @@ export default function PaymentConfirmationDialog({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Basic file type validation (optional, but good practice)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Tipe File Tidak Diizinkan",
+          description: "Hanya file gambar (JPG, PNG, GIF) atau PDF yang diizinkan.",
+          variant: "destructive",
+        });
+        setFileName(null);
+        form.setValue('proofFile', undefined);
+        event.target.value = ''; // Clear the input
+        return;
+      }
+
+      if (file.size > maxSize) {
+         toast({
+          title: "Ukuran File Terlalu Besar",
+          description: `Ukuran file maksimal adalah ${maxSize / (1024*1024)}MB.`,
+          variant: "destructive",
+        });
+        setFileName(null);
+        form.setValue('proofFile', undefined);
+        event.target.value = ''; // Clear the input
+        return;
+      }
+
       setFileName(file.name);
       form.setValue('proofFile', file);
     } else {
@@ -120,31 +148,28 @@ export default function PaymentConfirmationDialog({
       signatureDataUrl = `Ditandatangani oleh: ${values.signatureText.trim()}`;
     }
     
-    if ((values.paymentMethod === 'transfer' || values.paymentMethod === 'other') && fileName) {
-        proofFileName = fileName;
+    if ((values.paymentMethod === 'transfer' || values.paymentMethod === 'other' || values.paymentMethod === 'tunai_kolektor') && fileName) {
+        // For now, we are just storing the file name.
+        // In a real app, `values.proofFile` (the File object) would be uploaded here.
+        proofFileName = fileName; 
     }
     
-    // For online payments, proof and signature are generally handled by the gateway
     if (values.paymentMethod === 'online') {
         proofFileName = undefined;
         signatureDataUrl = undefined;
     }
-
 
     const submissionData = {
         paymentDate: values.paymentDate.toISOString(),
         amount: values.amount,
         paymentMethod: values.paymentMethod as Payment['paymentMethod'], 
         notes: values.notes,
-        proofFileName: proofFileName,
+        proofFileName: proofFileName, // This is just the name for now
         signatureDataUrl: signatureDataUrl,
     };
     onSubmit(submissionData);
-    toast({
-      title: 'Konfirmasi Terkirim',
-      description: 'Konfirmasi pembayaran Anda sedang diproses.',
-    });
-    onClose();
+    // Toast is now handled by the calling component (e.g. TagihanPage) after Firestore operation result
+    // onClose(); // Also handled by calling component
   };
 
   return (
@@ -242,7 +267,7 @@ export default function PaymentConfirmationDialog({
                 <Alert variant="default" className="bg-blue-50 border-blue-200">
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-700 text-xs">
-                        Untuk pembayaran online, Anda akan diarahkan untuk melakukan pembayaran melalui DANA ke akun Admin. Setelah pembayaran berhasil di DANA, Anda dapat kembali ke halaman ini untuk mencatat konfirmasi jika diperlukan oleh admin, atau jika ada catatan khusus yang ingin ditambahkan (misalnya, ID Transaksi DANA).
+                        Untuk pembayaran online, pastikan Anda telah melakukan pembayaran melalui DANA ke akun Admin. Formulir ini digunakan untuk mencatat konfirmasi dan ID transaksi jika diperlukan.
                     </AlertDescription>
                 </Alert>
             )}
@@ -267,8 +292,10 @@ export default function PaymentConfirmationDialog({
                       {fileName && <span className="text-sm text-muted-foreground truncate max-w-[200px]">{fileName}</span>}
                   </div>
                 </FormControl>
-                <FormMessage />
+                {paymentMethod === 'tunai_kolektor' && <p className="text-xs text-muted-foreground mt-1">(Opsional: Unggah foto kuitansi dari kolektor jika ada).</p>}
+                {paymentMethod === 'transfer' && <p className="text-xs text-muted-foreground mt-1">Unggah bukti transfer Anda (gambar atau PDF).</p>}
                 {paymentMethod === 'other' && <p className="text-xs text-muted-foreground mt-1">Unggah bukti jika metode 'Lainnya' memerlukan bukti transfer.</p>}
+                <FormMessage />
               </FormItem>
             )}
 
@@ -327,3 +354,6 @@ export default function PaymentConfirmationDialog({
     </Dialog>
   );
 }
+
+
+    
