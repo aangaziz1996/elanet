@@ -80,15 +80,18 @@ export default function PaymentConfirmationDialog({
   });
   
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
-  const showProofUpload = paymentMethod === 'transfer' || paymentMethod === 'other';
+  
+  // Determine visibility based on payment method
+  const showProofUpload = paymentMethod === 'transfer' || (paymentMethod === 'other' && !form.getValues('signatureText')); // Show for 'other' if signature isn't primary
   const showSignatureInput = paymentMethod === 'tunai_kolektor';
+  const isOnlinePayment = paymentMethod === 'online';
 
   React.useEffect(() => {
     if (isOpen) {
       form.reset({
         paymentDate: new Date(),
         amount: defaultAmount,
-        paymentMethod: 'transfer',
+        paymentMethod: 'transfer', // Default to transfer
         notes: '',
         proofFile: undefined,
         signatureText: '',
@@ -111,22 +114,35 @@ export default function PaymentConfirmationDialog({
 
   const handleSubmit = (values: PaymentConfirmationFormValues) => {
     let signatureDataUrl: string | undefined = undefined;
+    let proofFileName: string | undefined = undefined;
+
     if (values.paymentMethod === 'tunai_kolektor' && values.signatureText && values.signatureText.trim() !== '') {
       signatureDataUrl = `Ditandatangani oleh: ${values.signatureText.trim()}`;
     }
+    
+    if ((values.paymentMethod === 'transfer' || values.paymentMethod === 'other') && fileName) {
+        proofFileName = fileName;
+    }
+    
+    // For online payments, proof and signature are generally handled by the gateway
+    if (values.paymentMethod === 'online') {
+        proofFileName = undefined;
+        signatureDataUrl = undefined;
+    }
+
 
     const submissionData = {
         paymentDate: values.paymentDate.toISOString(),
         amount: values.amount,
-        paymentMethod: values.paymentMethod as Payment['paymentMethod'], // Cast to ensure type correctness
+        paymentMethod: values.paymentMethod as Payment['paymentMethod'], 
         notes: values.notes,
-        proofFileName: showProofUpload && fileName ? fileName : undefined,
+        proofFileName: proofFileName,
         signatureDataUrl: signatureDataUrl,
     };
     onSubmit(submissionData);
     toast({
       title: 'Konfirmasi Terkirim',
-      description: 'Bukti pembayaran Anda sedang diproses.',
+      description: 'Konfirmasi pembayaran Anda sedang diproses.',
     });
     onClose();
   };
@@ -213,7 +229,7 @@ export default function PaymentConfirmationDialog({
                     <SelectContent>
                       <SelectItem value="transfer">Transfer Bank</SelectItem>
                       <SelectItem value="tunai_kolektor">Tunai (Kolektor/di Tempat)</SelectItem>
-                      <SelectItem value="online">Gateway Online</SelectItem>
+                      <SelectItem value="online">Online (via DANA Admin)</SelectItem>
                       <SelectItem value="other">Lainnya</SelectItem>
                     </SelectContent>
                   </Select>
@@ -222,18 +238,18 @@ export default function PaymentConfirmationDialog({
               )}
             />
             
-            {paymentMethod === 'online' && (
+            {isOnlinePayment && (
                 <Alert variant="default" className="bg-blue-50 border-blue-200">
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-700 text-xs">
-                        Untuk pembayaran online, Anda umumnya akan diarahkan ke gateway pembayaran. Form ini untuk konfirmasi jika pembayaran telah berhasil atau jika ada instruksi khusus dari Admin.
+                        Untuk pembayaran online, Anda akan diarahkan untuk melakukan pembayaran melalui DANA ke akun Admin. Setelah pembayaran berhasil di DANA, Anda dapat kembali ke halaman ini untuk mencatat konfirmasi jika diperlukan oleh admin, atau jika ada catatan khusus yang ingin ditambahkan (misalnya, ID Transaksi DANA).
                     </AlertDescription>
                 </Alert>
             )}
 
-            {showProofUpload && (
+            {showProofUpload && !isOnlinePayment && (
               <FormItem>
-                <FormLabel>Bukti Pembayaran (Opsional jika tidak diwajibkan)</FormLabel>
+                <FormLabel>Bukti Pembayaran</FormLabel>
                 <FormControl>
                   <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" asChild className="relative overflow-hidden">
@@ -252,6 +268,7 @@ export default function PaymentConfirmationDialog({
                   </div>
                 </FormControl>
                 <FormMessage />
+                {paymentMethod === 'other' && <p className="text-xs text-muted-foreground mt-1">Unggah bukti jika metode 'Lainnya' memerlukan bukti transfer.</p>}
               </FormItem>
             )}
 
@@ -283,8 +300,10 @@ export default function PaymentConfirmationDialog({
                         paymentMethod === 'tunai_kolektor' 
                         ? "Contoh: Pembayaran diterima oleh kolektor Budi di rumah pada tanggal DD/MM/YYYY."
                         : paymentMethod === 'online'
-                        ? "Contoh: Pembayaran melalui QRIS, Ref: XXXXX"
-                        : "Misal: Pembayaran untuk bulan Juli, transfer dari BCD an. Pengirim"
+                        ? "Contoh: Pembayaran melalui DANA, Ref ID Transaksi: XXXXXYYYYY"
+                        : paymentMethod === 'transfer'
+                        ? "Misal: Pembayaran untuk bulan Juli, transfer dari BCD an. Pengirim"
+                        : "Catatan tambahan terkait pembayaran."
                       } 
                       {...field} 
                     />
