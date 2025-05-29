@@ -89,7 +89,7 @@ export default function CustomerFormDialog({
       address: '',
       phoneNumber: '',
       email: '',
-      wifiPackage: '',
+      wifiPackage: defaultWifiPackages[0],
       joinDate: new Date(),
       installationDate: undefined,
       billingCycleDay: 1,
@@ -103,21 +103,21 @@ export default function CustomerFormDialog({
   });
 
   React.useEffect(() => {
-    if (isOpen) { // Ensure form reset only happens when dialog is opened or customerToEdit changes
+    if (isOpen) { 
       if (customerToEdit) {
         form.reset({
           ...customerToEdit,
-          id: customerToEdit.id, // Should always be present
+          id: customerToEdit.id || '',
           firebaseUID: customerToEdit.firebaseUID || '',
-          name: customerToEdit.name || '', // Should always be present
-          address: customerToEdit.address || '', // Should always be present
-          phoneNumber: customerToEdit.phoneNumber || '', // Should always be present
+          name: customerToEdit.name || '',
+          address: customerToEdit.address || '',
+          phoneNumber: customerToEdit.phoneNumber || '',
           email: customerToEdit.email || '',
-          wifiPackage: customerToEdit.wifiPackage || defaultWifiPackages[0], // Should always be present
+          wifiPackage: customerToEdit.wifiPackage || defaultWifiPackages[0],
           joinDate: customerToEdit.joinDate ? parseISO(customerToEdit.joinDate) : new Date(),
           installationDate: customerToEdit.installationDate ? parseISO(customerToEdit.installationDate) : undefined,
           billingCycleDay: customerToEdit.billingCycleDay || 1,
-          status: customerToEdit.status || 'baru', // Should always be present
+          status: customerToEdit.status || 'baru',
           notes: customerToEdit.notes || '',
           onuMacAddress: customerToEdit.onuMacAddress || '',
           ipAddress: customerToEdit.ipAddress || '',
@@ -189,10 +189,10 @@ export default function CustomerFormDialog({
                 <FormItem>
                   <FormLabel>Firebase User ID (UID)</FormLabel>
                   <FormControl>
-                    <Input placeholder="UID dari Firebase Authentication" {...field} />
+                    <Input placeholder="UID dari Firebase Authentication (Opsional)" {...field} />
                   </FormControl>
                   <ShadcnFormDescription>
-                    Link ke akun Firebase Authentication pelanggan. Diperlukan agar pelanggan bisa login.
+                    (Opsional) Tautkan ke akun Firebase Authentication jika pelanggan memiliki akun (misal, untuk aplikasi lain atau keperluan admin).
                   </ShadcnFormDescription>
                   <FormMessage />
                 </FormItem>
@@ -248,11 +248,11 @@ export default function CustomerFormDialog({
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email (Pelanggan)</FormLabel>
+                    <FormLabel>Email Kontak</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="email@example.com" {...field} />
+                      <Input type="email" placeholder="email@example.com (Opsional)" {...field} />
                     </FormControl>
-                     <ShadcnFormDescription>Email ini sebaiknya sama dengan email login Firebase pelanggan.</ShadcnFormDescription>
+                     <ShadcnFormDescription>Email kontak pelanggan (mungkin berbeda dari email login Firebase jika ada).</ShadcnFormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

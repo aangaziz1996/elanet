@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Wifi, LogIn, Users, ShieldCheck } from "lucide-react";
+import { Wifi, Users, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -11,12 +11,12 @@ export default function HomePage() {
           <Wifi className="w-16 h-16 text-primary" />
         </div>
         <h1 className="text-4xl md:text-5xl font-bold text-foreground">
-          Selamat Datang di ELANET
+          Selamat Datang di ELANET Admin
         </h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
-          Sistem Manajemen Pelanggan dan Pembayaran WiFi.
+          Sistem Pembukuan dan Laporan Pelanggan WiFi.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+        <div className="grid grid-cols-1 gap-4 max-w-xs mx-auto">
           <Button asChild size="lg" className="w-full">
             <Link href="/admin/dashboard">
               <Users className="mr-2 h-5 w-5" />
@@ -29,16 +29,10 @@ export default function HomePage() {
               Login Admin
             </Link>
           </Button>
-          <Button variant="secondary" size="lg" asChild className="w-full sm:col-span-2">
-            <Link href="/login/pelanggan">
-              <LogIn className="mr-2 h-5 w-5" />
-              Login Pelanggan
-            </Link>
-          </Button>
         </div>
       </div>
       <footer className="absolute bottom-8 text-sm text-muted-foreground">
-        © {new Date().getFullYear()} ELANET. All rights reserved.
+        © {new Date().getFullYear()} ELANET. Hak Cipta Dilindungi.
       </footer>
     </div>
   );
