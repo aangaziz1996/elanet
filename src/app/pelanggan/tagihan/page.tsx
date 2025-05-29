@@ -15,7 +15,7 @@ import { id as localeId } from 'date-fns/locale';
 import PaymentConfirmationDialog from '@/components/payment/payment-confirmation-dialog';
 import { Badge } from '@/components/ui/badge';
 import { v4 as uuidv4 } from 'uuid';
-import { addPaymentConfirmationAction } from './actions'; // Assuming actions.ts is in the same folder
+import { addPaymentConfirmationAction } from '../actions'; // Corrected import path
 import type { User as FirebaseUser } from "firebase/auth";
 
 // Helper function to calculate due amount (simplified)

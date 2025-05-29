@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserCircle, Loader2 } from 'lucide-react';
-import { updateCustomerProfileAction } from './actions'; // Assuming actions.ts is in the same folder
+import { updateCustomerProfileAction } from '../actions'; // Corrected import path
 import type { User as FirebaseUser } from "firebase/auth";
 
 interface PelangganProfilPageProps {
