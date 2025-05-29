@@ -53,7 +53,7 @@ const customerFormSchema = z.object({
   installationDate: z.date().optional(),
   billingCycleDay: z.coerce.number().min(1).max(28, {message: "Hari siklus penagihan antara 1-28"}), // Max 28 for simplicity
   status: z.enum(['aktif', 'nonaktif', 'isolir', 'baru', 'berhenti']),
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(500).optional().or(z.literal('')),
   // Technical details - keep them optional
   onuMacAddress: z.string().optional().or(z.literal('')),
   ipAddress: z.string().optional().or(z.literal('')),
@@ -103,34 +103,47 @@ export default function CustomerFormDialog({
   });
 
   React.useEffect(() => {
-    if (customerToEdit) {
-      form.reset({
-        ...customerToEdit,
-        id: customerToEdit.id,
-        firebaseUID: customerToEdit.firebaseUID || '',
-        joinDate: customerToEdit.joinDate ? parseISO(customerToEdit.joinDate) : new Date(),
-        installationDate: customerToEdit.installationDate ? parseISO(customerToEdit.installationDate) : undefined,
-        billingCycleDay: customerToEdit.billingCycleDay || 1,
-      });
-    } else {
-      form.reset({
-        id: '',
-        firebaseUID: '',
-        name: '',
-        address: '',
-        phoneNumber: '',
-        email: '',
-        wifiPackage: defaultWifiPackages[0],
-        joinDate: new Date(),
-        installationDate: undefined,
-        billingCycleDay: 1,
-        status: 'baru',
-        notes: '',
-        onuMacAddress: '',
-        ipAddress: '',
-        routerUsername: '',
-        routerPassword: '',
-      });
+    if (isOpen) { // Ensure form reset only happens when dialog is opened or customerToEdit changes
+      if (customerToEdit) {
+        form.reset({
+          ...customerToEdit,
+          id: customerToEdit.id, // Should always be present
+          firebaseUID: customerToEdit.firebaseUID || '',
+          name: customerToEdit.name || '', // Should always be present
+          address: customerToEdit.address || '', // Should always be present
+          phoneNumber: customerToEdit.phoneNumber || '', // Should always be present
+          email: customerToEdit.email || '',
+          wifiPackage: customerToEdit.wifiPackage || defaultWifiPackages[0], // Should always be present
+          joinDate: customerToEdit.joinDate ? parseISO(customerToEdit.joinDate) : new Date(),
+          installationDate: customerToEdit.installationDate ? parseISO(customerToEdit.installationDate) : undefined,
+          billingCycleDay: customerToEdit.billingCycleDay || 1,
+          status: customerToEdit.status || 'baru', // Should always be present
+          notes: customerToEdit.notes || '',
+          onuMacAddress: customerToEdit.onuMacAddress || '',
+          ipAddress: customerToEdit.ipAddress || '',
+          routerUsername: customerToEdit.routerUsername || '',
+          routerPassword: customerToEdit.routerPassword || '',
+        });
+      } else {
+        form.reset({
+          id: '',
+          firebaseUID: '',
+          name: '',
+          address: '',
+          phoneNumber: '',
+          email: '',
+          wifiPackage: defaultWifiPackages[0],
+          joinDate: new Date(),
+          installationDate: undefined,
+          billingCycleDay: 1,
+          status: 'baru',
+          notes: '',
+          onuMacAddress: '',
+          ipAddress: '',
+          routerUsername: '',
+          routerPassword: '',
+        });
+      }
     }
   }, [customerToEdit, form, isOpen]);
 
@@ -250,7 +263,7 @@ export default function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Paket WiFi</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ''} >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih paket WiFi" />
@@ -373,7 +386,7 @@ export default function CustomerFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status Pelanggan</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || 'baru'}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih status" />
