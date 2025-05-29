@@ -9,6 +9,7 @@ export interface Payment {
   paymentMethod?: 'cash' | 'transfer' | 'online' | 'other';
   notes?: string;
   recordedBy?: string; // User ID or name
+  paymentStatus: 'pending_konfirmasi' | 'lunas' | 'ditolak'; // Added new status
 }
 
 export type CustomerStatus = 'aktif' | 'nonaktif' | 'isolir' | 'baru' | 'berhenti';
@@ -23,7 +24,6 @@ export interface Customer {
   joinDate: string; // ISO date string
   installationDate?: string; // ISO date string
   billingCycleDay: number; // e.g., 1 for 1st of month, 15 for 15th of month. Used to calculate due date.
-  // nextDueDate is better calculated on the fly or by a backend.
   status: CustomerStatus;
   paymentHistory: Payment[];
   notes?: string;
