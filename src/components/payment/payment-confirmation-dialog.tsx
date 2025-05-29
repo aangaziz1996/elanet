@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CalendarIcon, UploadCloud, Info, Image as ImageIcon } from 'lucide-react';
+import { CalendarIcon, Info } from 'lucide-react'; // Dihapus: UploadCloud, ImageIcon
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -41,16 +41,10 @@ import type { Payment } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-// Max file size for Base64 conversion (e.g., 200KB for original image)
-// Base64 string will be ~33% larger. 200KB * 1.33 ~= 266KB string.
-// Firestore doc limit is 1MiB. Be very conservative.
-const MAX_ORIGINAL_FILE_SIZE_BYTES = 200 * 1024; // 200KB
-
 const paymentConfirmationSchema = z.object({
   paymentDate: z.date({ required_error: 'Tanggal pembayaran harus diisi.' }),
   amount: z.coerce.number().positive({ message: 'Jumlah bayar harus positif.' }),
   paymentMethod: z.enum(['transfer', 'tunai_kolektor', 'online', 'other'], { required_error: 'Metode pembayaran harus dipilih.' }),
-  proofImage: z.any().optional(), // Will hold File object for image
   signatureText: z.string().optional(),
   notes: z.string().max(255).optional(),
 });
@@ -60,7 +54,7 @@ type PaymentConfirmationFormValues = z.infer<typeof paymentConfirmationSchema>;
 interface PaymentConfirmationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus' > & { proofOfPaymentUrl?: string; signatureDataUrl?: string }) => void;
+  onSubmit: (data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus' > & { signatureDataUrl?: string }) => void;
   defaultAmount: number;
 }
 
@@ -71,9 +65,6 @@ export default function PaymentConfirmationDialog({
   defaultAmount,
 }: PaymentConfirmationDialogProps) {
   const { toast } = useToast();
-  const [selectedFileName, setSelectedFileName] = React.useState<string | null>(null);
-  const [imageBase64, setImageBase64] = React.useState<string | null>(null);
-  const [isConvertingImage, setIsConvertingImage] = React.useState(false);
 
   const form = useForm<PaymentConfirmationFormValues>({
     resolver: zodResolver(paymentConfirmationSchema),
@@ -88,7 +79,6 @@ export default function PaymentConfirmationDialog({
   
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
   
-  const showProofUpload = paymentMethod === 'transfer' || paymentMethod === 'other' || paymentMethod === 'tunai_kolektor';
   const showSignatureInput = paymentMethod === 'tunai_kolektor';
   const isOnlinePayment = paymentMethod === 'online';
 
@@ -99,82 +89,16 @@ export default function PaymentConfirmationDialog({
         amount: defaultAmount,
         paymentMethod: 'transfer',
         notes: '',
-        proofImage: undefined,
         signatureText: '',
       });
-      setSelectedFileName(null);
-      setImageBase64(null);
-      setIsConvertingImage(false);
     }
   }, [isOpen, defaultAmount, form]);
 
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    setSelectedFileName(null); // Reset previous selection
-    setImageBase64(null);
-    form.setValue('proofImage', undefined);
-
-
-    if (file) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-      if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Tipe File Tidak Diizinkan",
-          description: "Hanya file gambar (JPG, PNG, GIF) yang diizinkan untuk disimpan langsung.",
-          variant: "destructive",
-        });
-        event.target.value = ''; // Clear the input
-        return;
-      }
-
-      if (file.size > MAX_ORIGINAL_FILE_SIZE_BYTES) {
-         toast({
-          title: "Ukuran File Terlalu Besar",
-          description: `Ukuran file gambar maksimal ${MAX_ORIGINAL_FILE_SIZE_BYTES / 1024}KB untuk disimpan langsung. Harap kompres gambar Anda.`,
-          variant: "destructive",
-        });
-        event.target.value = '';
-        return;
-      }
-      
-      setIsConvertingImage(true);
-      setSelectedFileName(file.name);
-      form.setValue('proofImage', file); // Keep file object for now if needed
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageBase64(reader.result as string);
-        setIsConvertingImage(false);
-      };
-      reader.onerror = () => {
-        toast({ title: "Error", description: "Gagal membaca file gambar.", variant: "destructive" });
-        setIsConvertingImage(false);
-        setSelectedFileName(null);
-        setImageBase64(null);
-        form.setValue('proofImage', undefined);
-      }
-      reader.readAsDataURL(file);
-
-    }
-  };
-
   const handleSubmit = (values: PaymentConfirmationFormValues) => {
-    if (isConvertingImage) {
-      toast({ title: "Harap Tunggu", description: "Gambar sedang diproses...", variant: "default" });
-      return;
-    }
-
     let signatureDataUrl: string | undefined = undefined;
-    let proofOfPaymentUrlValue: string | undefined = undefined;
 
     if (values.paymentMethod === 'tunai_kolektor' && values.signatureText && values.signatureText.trim() !== '') {
       signatureDataUrl = `Ditandatangani oleh: ${values.signatureText.trim()}`;
-    }
-    
-    // Only use imageBase64 if the method allows proof and image is actually converted
-    if (showProofUpload && imageBase64 && !isOnlinePayment) {
-        proofOfPaymentUrlValue = imageBase64;
     }
     
     const submissionData = {
@@ -182,7 +106,6 @@ export default function PaymentConfirmationDialog({
         amount: values.amount,
         paymentMethod: values.paymentMethod as Payment['paymentMethod'], 
         notes: values.notes,
-        proofOfPaymentUrl: proofOfPaymentUrlValue,
         signatureDataUrl: signatureDataUrl,
     };
     onSubmit(submissionData);
@@ -195,13 +118,6 @@ export default function PaymentConfirmationDialog({
           <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
           <DialogDescription>
             Lengkapi detail pembayaran Anda. Pilih metode yang sesuai.
-            <Alert variant="destructive" className="mt-2 text-xs">
-                <ImageIcon className="h-4 w-4" />
-                <AlertTitle>Penting Mengenai Bukti Gambar!</AlertTitle>
-                <AlertDescription>
-                    Jika Anda mengunggah gambar, pastikan ukurannya **sangat kecil (dibawah {MAX_ORIGINAL_FILE_SIZE_BYTES / 1024}KB)**. Gambar besar dapat menyebabkan kegagalan penyimpanan.
-                </AlertDescription>
-            </Alert>
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -269,14 +185,8 @@ export default function PaymentConfirmationDialog({
                 <FormItem>
                   <FormLabel>Metode Pembayaran</FormLabel>
                   <Select 
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      // Reset proof if method changes
-                      setSelectedFileName(null);
-                      setImageBase64(null);
-                      form.setValue('proofImage', undefined);
-                    }} 
-                    value={field.value} // Use value from field
+                    onValueChange={field.onChange} 
+                    value={field.value}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -302,41 +212,6 @@ export default function PaymentConfirmationDialog({
                         Untuk pembayaran online, pastikan Anda telah melakukan pembayaran melalui DANA ke akun Admin. Formulir ini dapat digunakan untuk mencatat konfirmasi dan ID transaksi Anda jika diperlukan pada bagian catatan.
                     </AlertDescription>
                 </Alert>
-            )}
-
-            {showProofUpload && !isOnlinePayment && (
-              <FormItem>
-                <FormLabel>Bukti Pembayaran (Gambar Kecil)</FormLabel>
-                <FormControl>
-                  <div className="flex items-center gap-2">
-                    <Button type="button" variant="outline" asChild className="relative overflow-hidden">
-                      <div>
-                          <UploadCloud className="mr-2 h-4 w-4" /> Unggah Gambar
-                          <Input 
-                              id="proofImage"
-                              type="file" 
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              onChange={handleFileChange}
-                              accept="image/jpeg,image/png,image/gif" // Only image types
-                              disabled={isConvertingImage}
-                          />
-                      </div>
-                    </Button>
-                      {isConvertingImage && <span className="text-sm text-muted-foreground">Memproses...</span>}
-                      {selectedFileName && !isConvertingImage && <span className="text-sm text-muted-foreground truncate max-w-[200px]">{selectedFileName}</span>}
-                  </div>
-                </FormControl>
-                {paymentMethod === 'tunai_kolektor' && <p className="text-xs text-muted-foreground mt-1">(Opsional: Unggah foto kuitansi kecil dari kolektor jika ada).</p>}
-                {paymentMethod === 'transfer' && <p className="text-xs text-muted-foreground mt-1">Unggah bukti transfer Anda (gambar kecil).</p>}
-                {paymentMethod === 'other' && <p className="text-xs text-muted-foreground mt-1">Unggah bukti jika metode 'Lainnya' memerlukan bukti (gambar kecil).</p>}
-                {imageBase64 && (
-                  <div className="mt-2">
-                    <FormLabel className="text-xs">Preview:</FormLabel>
-                    <img src={imageBase64} alt="Preview bukti" className="max-w-xs max-h-32 border rounded-md object-contain" />
-                  </div>
-                )}
-                <FormMessage />
-              </FormItem>
             )}
 
             {showSignatureInput && (
@@ -384,8 +259,8 @@ export default function PaymentConfirmationDialog({
               <Button type="button" variant="outline" onClick={onClose}>
                 Batal
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting || isConvertingImage}>
-                {form.formState.isSubmitting || isConvertingImage ? 'Memproses...' : 'Kirim Konfirmasi'}
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Memproses...' : 'Kirim Konfirmasi'}
               </Button>
             </DialogFooter>
           </form>
@@ -394,5 +269,3 @@ export default function PaymentConfirmationDialog({
     </Dialog>
   );
 }
-    
-    

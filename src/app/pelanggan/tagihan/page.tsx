@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock, Loader2, Eye } from 'lucide-react';
+import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock, Loader2 } from 'lucide-react'; // Dihapus: Eye
 import { format, addMonths, setDate, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import PaymentConfirmationDialog from '@/components/payment/payment-confirmation-dialog';
@@ -16,7 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import { v4 as uuidv4 } from 'uuid';
 import { addPaymentConfirmationAction } from '../actions';
 import type { User as FirebaseUser } from "firebase/auth";
-import Image from 'next/image'; // Import next/image
+// import Image from 'next/image'; // Dihapus: Tidak digunakan lagi
+// import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Dihapus: Tidak digunakan lagi
 
 // Helper function to calculate due amount (simplified)
 const calculateDueAmount = (customer: Customer | null): number => {
@@ -94,7 +95,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
   }
 
   const handlePaymentConfirmationSubmit = async (
-    data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus'> & { proofOfPaymentUrl?: string; signatureDataUrl?: string }
+    data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus' > & { signatureDataUrl?: string }
   ) => {
     if (!customer || !firebaseUserFromLayout?.uid) return;
     setIsSubmittingPayment(true);
@@ -157,7 +158,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
       amount: data.amount,
       paymentMethod: data.paymentMethod,
       notes: data.notes,
-      proofOfPaymentUrl: data.proofOfPaymentUrl, // This will be Base64 data URI or undefined
+      // proofOfPaymentUrl: data.proofOfPaymentUrl, // Dihapus
       signatureDataUrl: data.signatureDataUrl,
       paymentStatus: 'pending_konfirmasi',
       periodStart: periodStart.toISOString(),
@@ -277,7 +278,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
                     <TableHead>Metode</TableHead>
                     <TableHead className="text-right">Jumlah</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Bukti</TableHead>
+                    {/* <TableHead>Bukti</TableHead> // Dihapus */}
                     <TableHead>Tanda Tangan</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -297,7 +298,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
                       <TableCell>
                         {getPaymentStatusBadge(payment.paymentStatus)}
                       </TableCell>
-                       <TableCell>
+                       {/* <TableCell> // Dihapus
                         {payment.proofOfPaymentUrl ? (
                            payment.proofOfPaymentUrl.startsWith('data:image') ? (
                              <Popover>
@@ -307,7 +308,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
                                  </Button>
                                </PopoverTrigger>
                                <PopoverContent className="w-auto p-0">
-                                 <Image src={payment.proofOfPaymentUrl} alt="Bukti Pembayaran" width={300} height={400} style={{objectFit: 'contain'}} className="rounded-md" data-ai-hint="payment proof" />
+                                 <Image src={payment.proofOfPaymentUrl} alt="Bukti Pembayaran" width={300} height={400} style={{objectFit: 'contain'}} className="rounded-md" />
                                </PopoverContent>
                              </Popover>
                            ) : (
@@ -330,7 +331,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
                         ) : (
                           '-'
                         )}
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         {payment.signatureDataUrl ? (
                             <div className="text-xs text-muted-foreground italic flex items-center gap-1">
@@ -362,5 +363,3 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
     </div>
   );
 }
-    
-    

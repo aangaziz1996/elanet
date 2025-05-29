@@ -8,6 +8,7 @@ import type { Customer, Payment } from '@/types/customer';
 export const initialCustomers: Customer[] = [
   {
     id: 'cust_1',
+    firebaseUID: 'mock_firebase_uid_1',
     name: 'Andi Budiman',
     address: 'Jl. Merdeka No. 10, Jakarta',
     phoneNumber: '081234567890',
@@ -26,7 +27,7 @@ export const initialCustomers: Customer[] = [
         periodEnd: new Date('2024-08-14').toISOString(), 
         paymentMethod: 'transfer', 
         paymentStatus: 'lunas',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiAndi1'
+        // proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiAndi1' // Dihapus
       },
       { 
         id: 'pay_2', 
@@ -36,7 +37,7 @@ export const initialCustomers: Customer[] = [
         periodEnd: new Date('2024-07-14').toISOString(), 
         paymentMethod: 'transfer',
         paymentStatus: 'lunas',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiAndi2'
+        // proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiAndi2' // Dihapus
       },
     ],
     notes: 'Pelanggan lama, pembayaran selalu tepat waktu.',
@@ -45,6 +46,7 @@ export const initialCustomers: Customer[] = [
   },
   {
     id: 'cust_2',
+    firebaseUID: 'mock_firebase_uid_2',
     name: 'Siti Aminah',
     address: 'Jl. Pahlawan No. 5, Bandung',
     phoneNumber: '085678901234',
@@ -72,7 +74,7 @@ export const initialCustomers: Customer[] = [
         periodEnd: new Date('2024-07-19').toISOString(),
         paymentMethod: 'transfer',
         paymentStatus: 'pending_konfirmasi',
-        proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiSitiPending',
+        // proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiSitiPending', // Dihapus
         notes: 'Transfer via ATM BCD'
        }
     ],
@@ -80,7 +82,6 @@ export const initialCustomers: Customer[] = [
     onuMacAddress: 'AA:BB:CC:DD:EE:02',
     ipAddress: '192.168.1.102',
   },
-  // Add more customers if needed for initial Firestore population by hand, or use the app to add them.
 ];
 
 // These functions will need to be adapted to use Firestore if other parts of the app still use them.
@@ -111,7 +112,7 @@ export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & {
   console.warn("getAllPaymentsFromCustomers from mock-data.ts is being called. Ensure this is intended if Firestore is integrated.");
   const allPayments: (Payment & { customerId: string, customerName: string })[] = [];
   customers.forEach(customer => {
-    customer.paymentHistory.forEach(payment => {
+    (customer.paymentHistory || []).forEach(payment => { // Ensure paymentHistory exists
       allPayments.push({
         ...payment,
         customerId: customer.id,

@@ -48,9 +48,6 @@ export async function getCustomerByFirebaseUIDAction(firebaseUID: string): Promi
     const customerDoc = querySnapshot.docs[0];
     const customerData = convertTimestampsToISO(customerDoc.data()) as Customer;
     
-    // Add Firestore document ID to customer data for easier updates later if needed
-    // customerData.firestoreDocId = customerDoc.id; // Optional, if needed by other actions
-
     return { success: true, customer: customerData };
   } catch (error) {
     console.error("Error fetching customer by Firebase UID: ", error);
@@ -84,8 +81,7 @@ export async function updateCustomerProfileAction(
     const customerDocRef = querySnapshot.docs[0].ref;
     await updateDoc(customerDocRef, data);
 
-    // Re-fetch the updated customer to return
-    const updatedDocSnap = await getDocs(q); // Re-query to get the updated document
+    const updatedDocSnap = await getDocs(q); 
     const updatedCustomer = convertTimestampsToISO(updatedDocSnap.docs[0].data()) as Customer;
 
 
@@ -105,8 +101,8 @@ export interface AddPaymentResult {
 }
 
 export async function addPaymentConfirmationAction(
-  firebaseUID: string, // Identify customer by Firebase UID
-  paymentData: Payment 
+  firebaseUID: string, 
+  paymentData: Omit<Payment, 'proofOfPaymentUrl'> // proofOfPaymentUrl tidak lagi dikirim
 ): Promise<AddPaymentResult> {
   if (!firebaseUID) {
     return { success: false, message: 'Firebase UID tidak valid.' };
@@ -120,13 +116,19 @@ export async function addPaymentConfirmationAction(
     }
     const customerDocRef = querySnapshot.docs[0].ref;
     
+    const paymentToSave: Payment = {
+        ...paymentData,
+        // proofOfPaymentUrl is not part of paymentData anymore
+    };
+    
     await updateDoc(customerDocRef, {
-      paymentHistory: arrayUnion(paymentData)
+      paymentHistory: arrayUnion(paymentToSave)
     });
 
     revalidatePath(`/pelanggan/tagihan`);
     revalidatePath(`/pelanggan/dashboard`);
-    return { success: true, message: 'Konfirmasi pembayaran berhasil ditambahkan.', payment: paymentData };
+    // Mengembalikan paymentData yang asli, tanpa proofOfPaymentUrl
+    return { success: true, message: 'Konfirmasi pembayaran berhasil ditambahkan.', payment: paymentData as Payment };
   } catch (error) {
     console.error("Error adding payment confirmation: ", error);
     return { success: false, message: 'Gagal menambahkan konfirmasi pembayaran.' };

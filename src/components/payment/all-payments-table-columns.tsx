@@ -11,8 +11,8 @@ import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import Image from 'next/image'; // Import next/image
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Import Popover
+// import Image from 'next/image'; // Dihapus
+// import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Dihapus
 
 export type PaymentWithCustomerInfo = Payment & { 
   customerId: string; 
@@ -137,55 +137,53 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       return value.includes(row.getValue(id) as string);
     }
   },
-  {
-    accessorKey: 'proofOfPaymentUrl',
-    header: 'Bukti',
-    cell: ({ row }) => {
-      const { toast } = useToast();
-      const proofUrl = row.getValue('proofOfPaymentUrl') as string | undefined;
-      if (!proofUrl) return '-';
+  // { // Dihapus kolom bukti
+  //   accessorKey: 'proofOfPaymentUrl',
+  //   header: 'Bukti',
+  //   cell: ({ row }) => {
+  //     const { toast } = useToast();
+  //     const proofUrl = row.getValue('proofOfPaymentUrl') as string | undefined;
+  //     if (!proofUrl) return '-';
       
-      if (proofUrl.startsWith('data:image')) {
-        return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="link" size="sm" className="h-auto p-0 text-primary hover:underline">
-                <Eye className="mr-1 h-3 w-3" /> Lihat Gambar
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              {/* Using <img> for Base64 data URI to avoid Next/Image config for remote patterns */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={proofUrl} alt="Bukti Pembayaran" style={{maxWidth: '300px', maxHeight: '400px', objectFit: 'contain'}} className="rounded-md" data-ai-hint="payment proof" />
-            </PopoverContent>
-          </Popover>
-        );
-      }
+  //     if (proofUrl.startsWith('data:image')) {
+  //       return (
+  //         <Popover>
+  //           <PopoverTrigger asChild>
+  //             <Button variant="link" size="sm" className="h-auto p-0 text-primary hover:underline">
+  //               <Eye className="mr-1 h-3 w-3" /> Lihat Gambar
+  //             </Button>
+  //           </PopoverTrigger>
+  //           <PopoverContent className="w-auto p-0">
+  //             {/* eslint-disable-next-line @next/next/no-img-element */}
+  //             <img src={proofUrl} alt="Bukti Pembayaran" style={{maxWidth: '300px', maxHeight: '400px', objectFit: 'contain'}} className="rounded-md" />
+  //           </PopoverContent>
+  //         </Popover>
+  //       );
+  //     }
       
-      // Fallback for non-DataURI URLs or mock filenames
-      const isHttpUrl = proofUrl.startsWith('http://') || proofUrl.startsWith('https://');
-      const isPlaceholderCo = proofUrl.startsWith('https://placehold.co');
+  //     const isHttpUrl = proofUrl.startsWith('http://') || proofUrl.startsWith('https://');
+  //     const isPlaceholderCo = proofUrl.startsWith('https://placehold.co');
 
-      return (
-        <Button 
-            variant="link" 
-            size="sm" 
-            className="h-auto p-0"
-            onClick={(e) => {
-                if (isHttpUrl || isPlaceholderCo) { 
-                    window.open(proofUrl, '_blank');
-                } else { 
-                     e.preventDefault();
-                     toast({ title: "Info Bukti Pembayaran", description: `File: ${proofUrl}`});
-                }
-            }}
-        >
-            <Eye className="mr-1 h-3 w-3" /> 
-            {isHttpUrl || isPlaceholderCo ? 'Lihat Tautan' : 'Lihat Info'}
-        </Button>
-      );
-    },
-  },
+  //     return (
+  //       <Button 
+  //           variant="link" 
+  //           size="sm" 
+  //           className="h-auto p-0"
+  //           onClick={(e) => {
+  //               if (isHttpUrl || isPlaceholderCo) { 
+  //                   window.open(proofUrl, '_blank');
+  //               } else { 
+  //                    e.preventDefault();
+  //                    toast({ title: "Info Bukti Pembayaran", description: `File: ${proofUrl}`});
+  //               }
+  //           }}
+  //       >
+  //           <Eye className="mr-1 h-3 w-3" /> 
+  //           {isHttpUrl || isPlaceholderCo ? 'Lihat Tautan' : 'Lihat Info'}
+  //       </Button>
+  //     );
+  //   },
+  // },
   {
     accessorKey: 'signatureDataUrl',
     header: 'Tanda Tangan',
@@ -235,6 +233,3 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
     },
   },
 ];
-    
-
-    
