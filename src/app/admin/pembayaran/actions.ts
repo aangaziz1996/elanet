@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, updateDoc, Timestamp, runTransaction, query, where, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, Timestamp, runTransaction, query, where, arrayUnion, getDoc } from 'firebase/firestore';
 import type { Customer, Payment } from '@/types/customer';
 import type { PaymentWithCustomerInfo } from '@/components/payment/all-payments-table-columns';
 
@@ -252,9 +252,9 @@ export async function adminAddPaymentToCustomerAction(
     });
 
     // Check if this new payment makes the customer active
-    const customerDocSnap = await getDocs(query(collection(db, 'customers'), where('__name__', '==', customerFirestoreDocId))); // Re-fetch for current status
-    if (!customerDocSnap.empty) {
-      const customerData = customerDocSnap.docs[0].data() as Customer;
+    const customerSnap = await getDoc(customerDocRef); // Re-fetch for current status
+    if (customerSnap.exists()) {
+      const customerData = customerSnap.data() as Customer;
       if (newPayment.paymentStatus === 'lunas' && (customerData.status === 'isolir' || customerData.status === 'baru')) {
         await updateDoc(customerDocRef, { status: 'aktif' });
       }
@@ -270,3 +270,4 @@ export async function adminAddPaymentToCustomerAction(
     return { success: false, message: `Gagal menambahkan pembayaran baru: ${errorMessage}` };
   }
 }
+
