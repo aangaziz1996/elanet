@@ -1,3 +1,4 @@
+
 export interface Payment {
   id: string;
   paymentDate: string; // ISO date string
@@ -6,7 +7,7 @@ export interface Payment {
   periodEnd: string; // ISO date string
   proofOfPaymentUrl?: string;
   signatureDataUrl?: string; // For digital signature, e.g., "Ditandatangani oleh: Nama Jelas"
-  paymentMethod?: 'cash' | 'transfer' | 'online' | 'other';
+  paymentMethod?: 'tunai_kolektor' | 'transfer' | 'online' | 'other';
   notes?: string;
   recordedBy?: string; // User ID or name
   paymentStatus: 'pending_konfirmasi' | 'lunas' | 'ditolak'; // Added new status

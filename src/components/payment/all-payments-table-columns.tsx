@@ -5,19 +5,12 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { Payment } from '@/types/customer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Edit } from 'lucide-react'; // Added Edit
+import { ArrowUpDown, Eye, CheckCircle, AlertCircle, Clock, XCircle, ThumbsUp, ThumbsDown, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export type PaymentWithCustomerInfo = Payment & { customerId: string; customerName: string };
 
@@ -29,11 +22,11 @@ interface AllPaymentsTableColumnProps {
 const getPaymentStatusBadgeVariant = (status: Payment['paymentStatus']): 'default' | 'secondary' | 'destructive' | 'outline' => {
   switch (status) {
     case 'lunas':
-      return 'default'; // Often green
+      return 'default'; 
     case 'pending_konfirmasi':
-      return 'outline'; // Often yellow/orange
+      return 'outline'; 
     case 'ditolak':
-      return 'destructive'; // Often red
+      return 'destructive'; 
     default:
       return 'secondary';
   }
@@ -112,7 +105,7 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
   {
     accessorKey: 'paymentMethod',
     header: 'Metode',
-    cell: ({row}) => <span className="capitalize">{row.getValue('paymentMethod')}</span>
+    cell: ({row}) => <span className="capitalize">{row.original.paymentMethod?.replace('_', ' ')}</span>
   },
   {
     accessorKey: 'paymentStatus',
@@ -125,7 +118,7 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
                className={cn(
                 status === 'lunas' && 'bg-green-500 hover:bg-green-600 text-white',
                 status === 'pending_konfirmasi' && 'border-yellow-500 text-yellow-600',
-                status === 'ditolak' && '' // destructive variant handles this
+                status === 'ditolak' && '' 
                )}>
           <Icon className="mr-1 h-3 w-3" />
           {getPaymentStatusText(status)}
@@ -153,13 +146,11 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
             size="sm" 
             className="h-auto p-0"
             onClick={(e) => {
-                if (isPlaceholder) {
+                if (isPlaceholder || (!isPlaceholder && !isMockFilename)) { // Real URL or Placehold.co
                     window.open(proofUrl, '_blank');
-                } else if (isMockFilename) {
+                } else if (isMockFilename) { // Mock filename
                      e.preventDefault();
                      toast({ title: "Info Bukti Pembayaran", description: `Nama file (mock): ${proofUrl}`});
-                } else {
-                    window.open(proofUrl, '_blank');
                 }
             }}
         >

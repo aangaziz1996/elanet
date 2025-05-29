@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock } from 'lucide-react'; // Edit for signature
+import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { format, addMonths, setDate, startOfMonth, endOfMonth } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import PaymentConfirmationDialog from '@/components/payment/payment-confirmation-dialog';
@@ -20,7 +20,6 @@ import { v4 as uuidv4 } from 'uuid';
 const calculateDueAmount = (customer: Customer): number => {
   if (customer.status === 'berhenti' || customer.status === 'nonaktif') return 0;
 
-  // Check if there's an unpaid or pending payment for the current/previous cycle
   const today = new Date();
   const currentCyclePayment = customer.paymentHistory
     .filter(p => p.paymentStatus === 'lunas')
@@ -29,29 +28,26 @@ const calculateDueAmount = (customer: Customer): number => {
   let hasPaidForCurrentCycle = false;
   if (currentCyclePayment) {
     const periodEnd = new Date(currentCyclePayment.periodEnd);
-    if (periodEnd >= today) { // If current lunas payment covers today
+    if (periodEnd >= today) { 
         hasPaidForCurrentCycle = true;
     }
   }
   
-  // If there's a payment pending confirmation for current cycle, consider amount as 0 for now
   const pendingPaymentForCurrentCycle = customer.paymentHistory.find(p => {
     const periodEndDate = new Date(p.periodEnd);
     const periodStartDate = new Date(p.periodStart);
-    // Check if today falls within this payment's period or if the period is the most recent one
     return p.paymentStatus === 'pending_konfirmasi' && periodEndDate >= setDate(startOfMonth(today), customer.billingCycleDay-1) && periodStartDate <= setDate(endOfMonth(today), customer.billingCycleDay);
   });
 
 
   if (hasPaidForCurrentCycle || pendingPaymentForCurrentCycle) return 0;
   
-  // Fallback to package price if no recent 'lunas' or 'pending' payment found for the current cycle
   if (customer.wifiPackage.includes("10 Mbps")) return 100000;
   if (customer.wifiPackage.includes("20 Mbps")) return 150000;
   if (customer.wifiPackage.includes("30 Mbps")) return 200000;
   if (customer.wifiPackage.includes("50 Mbps")) return 250000;
   if (customer.wifiPackage.includes("100 Mbps")) return 350000;
-  return 125000; // Default for "5 Mbps" or "Custom"
+  return 125000; 
 };
 
 
@@ -85,7 +81,6 @@ export default function PelangganTagihanPage() {
     }
     const fetchedCustomer = findCustomerById(loggedInId);
     if (fetchedCustomer) {
-      // Create a deep copy to allow local modifications without affecting mock-data.ts directly
       setCustomer(JSON.parse(JSON.stringify(fetchedCustomer)));
     } else {
       router.replace('/login/pelanggan');
@@ -103,7 +98,6 @@ export default function PelangganTagihanPage() {
     let periodStart: Date;
     let periodEnd: Date;
 
-    // Determine billing period for the new payment
     const lastLunasPayment = [...customer.paymentHistory]
       .filter(p => p.paymentStatus === 'lunas')
       .sort((a,b) => new Date(b.periodEnd).getTime() - new Date(a.periodEnd).getTime())[0];
@@ -111,7 +105,6 @@ export default function PelangganTagihanPage() {
     if (lastLunasPayment) {
         periodStart = addMonths(new Date(lastLunasPayment.periodEnd), 0); 
         periodStart.setDate(new Date(lastLunasPayment.periodEnd).getDate() + 1);
-
     } else { 
         periodStart = new Date(customer.joinDate);
         if (periodStart.getDate() > customer.billingCycleDay) {
@@ -120,9 +113,10 @@ export default function PelangganTagihanPage() {
             periodStart = setDate(periodStart, customer.billingCycleDay);
         }
     }
+    // Ensure periodStart is set to the billing cycle day of its month
     periodStart = setDate(new Date(periodStart.getFullYear(), periodStart.getMonth(), 1), customer.billingCycleDay);
 
-
+    // Period end is one month after periodStart, minus one day
     periodEnd = addMonths(new Date(periodStart), 1);
     periodEnd.setDate(periodStart.getDate() -1);
 
@@ -172,7 +166,6 @@ export default function PelangganTagihanPage() {
             nextDueDate.setMonth(currentMonth + 1);
         }
     }
-
   } else { 
       const join = new Date(customer.joinDate);
       nextDueDate = setDate(join, customer.billingCycleDay);
@@ -204,7 +197,7 @@ export default function PelangganTagihanPage() {
               <span className="text-sm font-medium">{format(nextDueDate, 'dd MMMM yyyy', { locale: localeId })}</span>
             </div>
              <div className="text-xs text-muted-foreground pt-2">
-              Silakan lakukan pembayaran dan konfirmasi di bawah ini.
+              Silakan lakukan pembayaran sesuai metode yang Anda pilih, lalu konfirmasikan di bawah ini.
             </div>
           </CardContent>
           <CardFooter className="gap-2">
@@ -266,7 +259,9 @@ export default function PelangganTagihanPage() {
                       <TableCell>
                         {format(new Date(payment.periodStart), 'dd/MM/yy')} - {format(new Date(payment.periodEnd), 'dd/MM/yy')}
                       </TableCell>
-                       <TableCell className="capitalize">{payment.paymentMethod || 'N/A'}</TableCell>
+                       <TableCell className="capitalize">
+                        {payment.paymentMethod?.replace('_', ' ') || 'N/A'}
+                       </TableCell>
                       <TableCell className="text-right">Rp {payment.amount.toLocaleString('id-ID')}</TableCell>
                       <TableCell>
                         {getPaymentStatusBadge(payment.paymentStatus)}
@@ -280,12 +275,11 @@ export default function PelangganTagihanPage() {
                             className="text-sm text-primary hover:underline"
                             onClick={(e) => {
                                 if (payment.proofOfPaymentUrl?.startsWith('https://placehold.co')) {
-                                    // This is a placeholder, prevent default and show toast
+                                    // This is a placeholder, allow default
                                 } else if (!payment.proofOfPaymentUrl?.startsWith('http')) {
                                      e.preventDefault();
                                      toast({ title: "Info", description: `Bukti: ${payment.proofOfPaymentUrl}`});
                                 }
-                                // else allow normal link behavior for real URLs
                             }}
                             >
                             Lihat Bukti
@@ -300,7 +294,7 @@ export default function PelangganTagihanPage() {
                                 <Edit className="h-3 w-3" /> 
                                 {payment.signatureDataUrl.split(': ')[1] || payment.signatureDataUrl}
                             </div>
-                        ) : payment.paymentMethod === 'cash' ? (
+                        ) : payment.paymentMethod === 'tunai_kolektor' ? (
                             <span className="text-xs text-muted-foreground italic">Tidak ada</span>
                         ) : (
                            '-'
@@ -320,7 +314,7 @@ export default function PelangganTagihanPage() {
         isOpen={isConfirmationDialogOpen}
         onClose={() => setIsConfirmationDialogOpen(false)}
         onSubmit={handlePaymentConfirmationSubmit}
-        defaultAmount={dueAmount > 0 ? dueAmount : (customer ? (calculateDueAmount(customer) || 100000) : 100000)} // Fallback amount
+        defaultAmount={dueAmount > 0 ? dueAmount : (customer ? (calculateDueAmount(customer) || 100000) : 100000)}
       />
     </div>
   );

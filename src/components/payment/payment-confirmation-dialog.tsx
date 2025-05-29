@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { CalendarIcon, UploadCloud } from 'lucide-react';
+import { CalendarIcon, UploadCloud, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -39,13 +39,14 @@ import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import type { Payment } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const paymentConfirmationSchema = z.object({
   paymentDate: z.date({ required_error: 'Tanggal pembayaran harus diisi.' }),
   amount: z.coerce.number().positive({ message: 'Jumlah bayar harus positif.' }),
-  paymentMethod: z.enum(['transfer', 'cash', 'online', 'other'], { required_error: 'Metode pembayaran harus dipilih.' }),
-  proofFile: z.any().optional(), // In a real app, use z.instanceof(File) and refine
-  signatureText: z.string().optional(), // For offline/cash signature
+  paymentMethod: z.enum(['transfer', 'tunai_kolektor', 'online', 'other'], { required_error: 'Metode pembayaran harus dipilih.' }),
+  proofFile: z.any().optional(),
+  signatureText: z.string().optional(),
   notes: z.string().max(255).optional(),
 });
 
@@ -79,6 +80,8 @@ export default function PaymentConfirmationDialog({
   });
   
   const paymentMethod = useWatch({ control: form.control, name: 'paymentMethod' });
+  const showProofUpload = paymentMethod === 'transfer' || paymentMethod === 'other';
+  const showSignatureInput = paymentMethod === 'tunai_kolektor';
 
   React.useEffect(() => {
     if (isOpen) {
@@ -99,7 +102,7 @@ export default function PaymentConfirmationDialog({
     const file = event.target.files?.[0];
     if (file) {
       setFileName(file.name);
-      form.setValue('proofFile', file); // Store file object if needed for real upload
+      form.setValue('proofFile', file);
     } else {
       setFileName(null);
       form.setValue('proofFile', undefined);
@@ -108,16 +111,16 @@ export default function PaymentConfirmationDialog({
 
   const handleSubmit = (values: PaymentConfirmationFormValues) => {
     let signatureDataUrl: string | undefined = undefined;
-    if (values.paymentMethod === 'cash' && values.signatureText && values.signatureText.trim() !== '') {
+    if (values.paymentMethod === 'tunai_kolektor' && values.signatureText && values.signatureText.trim() !== '') {
       signatureDataUrl = `Ditandatangani oleh: ${values.signatureText.trim()}`;
     }
 
     const submissionData = {
         paymentDate: values.paymentDate.toISOString(),
         amount: values.amount,
-        paymentMethod: values.paymentMethod,
+        paymentMethod: values.paymentMethod as Payment['paymentMethod'], // Cast to ensure type correctness
         notes: values.notes,
-        proofFileName: fileName || undefined, // Pass fileName for mock proofOfPaymentUrl
+        proofFileName: showProofUpload && fileName ? fileName : undefined,
         signatureDataUrl: signatureDataUrl,
     };
     onSubmit(submissionData);
@@ -134,7 +137,7 @@ export default function PaymentConfirmationDialog({
         <DialogHeader>
           <DialogTitle>Konfirmasi Pembayaran</DialogTitle>
           <DialogDescription>
-            Lengkapi detail pembayaran Anda dan unggah bukti jika ada. Untuk pembayaran tunai, harap isi nama penyetor sebagai tanda tangan.
+            Lengkapi detail pembayaran Anda. Pilih metode yang sesuai.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -209,7 +212,7 @@ export default function PaymentConfirmationDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="transfer">Transfer Bank</SelectItem>
-                      <SelectItem value="cash">Tunai (ke Kolektor)</SelectItem>
+                      <SelectItem value="tunai_kolektor">Tunai (Kolektor/di Tempat)</SelectItem>
                       <SelectItem value="online">Gateway Online</SelectItem>
                       <SelectItem value="other">Lainnya</SelectItem>
                     </SelectContent>
@@ -219,9 +222,18 @@ export default function PaymentConfirmationDialog({
               )}
             />
             
-            {paymentMethod !== 'cash' && (
+            {paymentMethod === 'online' && (
+                <Alert variant="default" className="bg-blue-50 border-blue-200">
+                    <Info className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-700 text-xs">
+                        Untuk pembayaran online, Anda umumnya akan diarahkan ke gateway pembayaran. Form ini untuk konfirmasi jika pembayaran telah berhasil atau jika ada instruksi khusus dari Admin.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {showProofUpload && (
               <FormItem>
-                <FormLabel>Bukti Pembayaran (Opsional)</FormLabel>
+                <FormLabel>Bukti Pembayaran (Opsional jika tidak diwajibkan)</FormLabel>
                 <FormControl>
                   <div className="flex items-center gap-2">
                     <Button type="button" variant="outline" asChild className="relative overflow-hidden">
@@ -243,7 +255,7 @@ export default function PaymentConfirmationDialog({
               </FormItem>
             )}
 
-            {paymentMethod === 'cash' && (
+            {showSignatureInput && (
                  <FormField
                     control={form.control}
                     name="signatureText"
@@ -259,7 +271,6 @@ export default function PaymentConfirmationDialog({
                 />
             )}
 
-
             <FormField
               control={form.control}
               name="notes"
@@ -267,7 +278,16 @@ export default function PaymentConfirmationDialog({
                 <FormItem>
                   <FormLabel>Catatan (Opsional)</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Misal: Pembayaran untuk bulan Juli, transfer dari BCD an. Pengirim" {...field} />
+                    <Textarea 
+                      placeholder={
+                        paymentMethod === 'tunai_kolektor' 
+                        ? "Contoh: Pembayaran diterima oleh kolektor Budi di rumah pada tanggal DD/MM/YYYY."
+                        : paymentMethod === 'online'
+                        ? "Contoh: Pembayaran melalui QRIS, Ref: XXXXX"
+                        : "Misal: Pembayaran untuk bulan Juli, transfer dari BCD an. Pengirim"
+                      } 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

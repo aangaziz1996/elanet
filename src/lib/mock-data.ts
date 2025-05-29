@@ -49,25 +49,23 @@ export const initialCustomers: Customer[] = [
     wifiPackage: '10 Mbps',
     joinDate: new Date('2023-03-20').toISOString(),
     billingCycleDay: 20,
-    status: 'isolir', // Still isolir, implies payment for current/last cycle is missing or pending
+    status: 'isolir', 
     paymentHistory: [
        { 
         id: 'pay_3', 
-        paymentDate: new Date('2024-05-20').toISOString(), // Older payment
+        paymentDate: new Date('2024-05-20').toISOString(), 
         amount: 100000, 
         periodStart: new Date('2024-05-20').toISOString(), 
         periodEnd: new Date('2024-06-19').toISOString(), 
-        paymentMethod: 'cash',
+        paymentMethod: 'tunai_kolektor',
         paymentStatus: 'lunas',
         signatureDataUrl: 'Ditandatangani oleh: Siti Aminah (via Kolektor Budi)'
        },
-       // No payment for June/July, hence 'isolir'
-       // Let's add a pending one to demonstrate
        {
         id: 'pay_4',
-        paymentDate: new Date('2024-07-21').toISOString(), // User submitted this
+        paymentDate: new Date('2024-07-21').toISOString(), 
         amount: 100000,
-        periodStart: new Date('2024-06-20').toISOString(), // For period June-July
+        periodStart: new Date('2024-06-20').toISOString(), 
         periodEnd: new Date('2024-07-19').toISOString(),
         paymentMethod: 'transfer',
         paymentStatus: 'pending_konfirmasi',
@@ -85,14 +83,14 @@ export const initialCustomers: Customer[] = [
     address: 'Jl. Kebangsaan No. 1, Surabaya',
     phoneNumber: '087812345678',
     wifiPackage: '50 Mbps',
-    joinDate: new Date('2024-06-10').toISOString(), // Relatively new
+    joinDate: new Date('2024-06-10').toISOString(), 
     billingCycleDay: 10,
-    status: 'aktif', // Let's assume they paid their first bill
+    status: 'aktif', 
     paymentHistory: [
         {
             id: 'pay_5',
             paymentDate: new Date('2024-07-09').toISOString(),
-            amount: 250000, // 50 Mbps
+            amount: 250000, 
             periodStart: new Date('2024-07-10').toISOString(),
             periodEnd: new Date('2024-08-09').toISOString(),
             paymentMethod: 'online',
@@ -128,7 +126,7 @@ export const initialCustomers: Customer[] = [
         amount: 200000, 
         periodStart: new Date('2024-06-01').toISOString(), 
         periodEnd: new Date('2024-06-30').toISOString(), 
-        paymentMethod: 'cash',
+        paymentMethod: 'tunai_kolektor',
         paymentStatus: 'lunas',
         proofOfPaymentUrl: 'https://placehold.co/100x50.png?text=BuktiDewiJuni',
         signatureDataUrl: 'Ditandatangani oleh: Dewi Lestari (Kolektor Ani)'
@@ -147,7 +145,7 @@ export const initialCustomers: Customer[] = [
     wifiPackage: '10 Mbps',
     joinDate: new Date('2024-07-05').toISOString(),
     billingCycleDay: 5,
-    status: 'baru', // New customer, payment might be pending for first bill
+    status: 'baru', 
     paymentHistory: [
       {
         id: 'pay_8',
@@ -167,9 +165,7 @@ export const initialCustomers: Customer[] = [
   }
 ];
 
-// Function to get a deep copy of initial customers
 export const getInitialCustomers = (): Customer[] => {
-  // Use structuredClone for a more robust deep copy if available, otherwise fallback to JSON method
   if (typeof structuredClone === 'function') {
     return structuredClone(initialCustomers);
   }
@@ -178,7 +174,7 @@ export const getInitialCustomers = (): Customer[] => {
 
 
 export const findCustomerById = (id: string, customersData?: Customer[]): Customer | undefined => {
-  const source = customersData || initialCustomers; // Use provided data or fallback to initial
+  const source = customersData || initialCustomers; 
   const customer = source.find(customer => customer.id === id);
   if (customer) {
     if (typeof structuredClone === 'function') {
@@ -189,7 +185,6 @@ export const findCustomerById = (id: string, customersData?: Customer[]): Custom
   return undefined;
 };
 
-// Helper function to get all payments from a given set of customers
 export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & { customerId: string, customerName: string })[] => {
   const allPayments: (Payment & { customerId: string, customerName: string })[] = [];
   customers.forEach(customer => {
@@ -204,7 +199,6 @@ export const getAllPaymentsFromCustomers = (customers: Customer[]): (Payment & {
   return allPayments.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
 };
 
-// Initial fetcher using the static data
 export const getAllPayments = (): (Payment & { customerId: string, customerName: string })[] => {
-    return getAllPaymentsFromCustomers(getInitialCustomers()); // Use the copying function
+    return getAllPaymentsFromCustomers(getInitialCustomers());
 }
