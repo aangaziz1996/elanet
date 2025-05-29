@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Wifi, LogIn, Users } from "lucide-react";
+import { Wifi, LogIn, Users, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   return (
@@ -16,14 +16,20 @@ export default function HomePage() {
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           Sistem Manajemen Pelanggan dan Pembayaran WiFi.
         </p>
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-          <Button asChild size="lg" className="w-full sm:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+          <Button asChild size="lg" className="w-full">
             <Link href="/admin/dashboard">
               <Users className="mr-2 h-5 w-5" />
               Dashboard Admin
             </Link>
           </Button>
-          <Button variant="outline" size="lg" asChild className="w-full sm:w-auto">
+           <Button variant="outline" size="lg" asChild className="w-full">
+            <Link href="/login/admin">
+              <ShieldCheck className="mr-2 h-5 w-5" />
+              Login Admin
+            </Link>
+          </Button>
+          <Button variant="secondary" size="lg" asChild className="w-full sm:col-span-2">
             <Link href="/login/pelanggan">
               <LogIn className="mr-2 h-5 w-5" />
               Login Pelanggan
