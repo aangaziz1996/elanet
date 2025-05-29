@@ -11,9 +11,11 @@ import { id as localeId } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import Image from 'next/image'; // Import next/image
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'; // Import Popover
 
 export type PaymentWithCustomerInfo = Payment & { 
-  customerId: string; // This is the custom ID of the customer
+  customerId: string; 
   customerName: string; 
 };
 
@@ -65,7 +67,6 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       </Button>
     ),
     cell: ({ row }) => {
-        // Assuming row.original.customerId is the custom ID used for Firestore queries in admin/pelanggan
         const customerSearchId = row.original.customerId; 
         return (
             <Link href={`/admin/pelanggan?search=${customerSearchId}`} className="hover:underline text-primary">
@@ -87,12 +88,11 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
     ),
     cell: ({ row }) => {
       const date = row.getValue('paymentDate');
-      // Firestore might return ISO string if converted, or Date object. Ensure Date conversion.
       return date ? format(new Date(date as string), 'dd MMM yyyy', { locale: localeId }) : '-';
     },
   },
   {
-    accessorKey: 'periodStart', // Also implicitly covers periodEnd
+    accessorKey: 'periodStart', 
     header: 'Periode',
     cell: ({ row }) => {
       const periodStart = row.original.periodStart;
@@ -126,14 +126,14 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
                className={cn(
                 status === 'lunas' && 'bg-green-500 hover:bg-green-600 text-white',
                 status === 'pending_konfirmasi' && 'border-yellow-500 text-yellow-600',
-                status === 'ditolak' && '' // uses default destructive variant
+                status === 'ditolak' && '' 
                )}>
           <Icon className="mr-1 h-3 w-3" />
           {getPaymentStatusText(status)}
         </Badge>
       );
     },
-    filterFn: (row, id, value: string[]) => { // Ensure value is typed as string[]
+    filterFn: (row, id, value: string[]) => { 
       return value.includes(row.getValue(id) as string);
     }
   },
@@ -145,6 +145,24 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
       const proofUrl = row.getValue('proofOfPaymentUrl') as string | undefined;
       if (!proofUrl) return '-';
       
+      if (proofUrl.startsWith('data:image')) {
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="link" size="sm" className="h-auto p-0 text-primary hover:underline">
+                <Eye className="mr-1 h-3 w-3" /> Lihat Gambar
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              {/* Using <img> for Base64 data URI to avoid Next/Image config for remote patterns */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={proofUrl} alt="Bukti Pembayaran" style={{maxWidth: '300px', maxHeight: '400px', objectFit: 'contain'}} className="rounded-md" data-ai-hint="payment proof" />
+            </PopoverContent>
+          </Popover>
+        );
+      }
+      
+      // Fallback for non-DataURI URLs or mock filenames
       const isHttpUrl = proofUrl.startsWith('http://') || proofUrl.startsWith('https://');
       const isPlaceholderCo = proofUrl.startsWith('https://placehold.co');
 
@@ -156,13 +174,14 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
             onClick={(e) => {
                 if (isHttpUrl || isPlaceholderCo) { 
                     window.open(proofUrl, '_blank');
-                } else { // Assumed to be a filename or mock identifier
+                } else { 
                      e.preventDefault();
                      toast({ title: "Info Bukti Pembayaran", description: `File: ${proofUrl}`});
                 }
             }}
         >
-            <Eye className="mr-1 h-3 w-3" /> Lihat
+            <Eye className="mr-1 h-3 w-3" /> 
+            {isHttpUrl || isPlaceholderCo ? 'Lihat Tautan' : 'Lihat Info'}
         </Button>
       );
     },
@@ -216,4 +235,6 @@ export const columns = ({ onConfirmPayment, onRejectPayment }: AllPaymentsTableC
     },
   },
 ];
+    
+
     

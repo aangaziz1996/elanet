@@ -2,21 +2,21 @@
 'use client';
 
 import * as React from 'react';
-// import { useParams, useRouter } from 'next/navigation'; // No longer need useParams
 import { useRouter } from 'next/navigation';
 import type { Customer, Payment } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import { FileText, UploadCloud, Edit, CheckCircle, AlertCircle, Clock, Loader2, Eye } from 'lucide-react';
 import { format, addMonths, setDate, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import PaymentConfirmationDialog from '@/components/payment/payment-confirmation-dialog';
 import { Badge } from '@/components/ui/badge';
 import { v4 as uuidv4 } from 'uuid';
-import { addPaymentConfirmationAction } from '../actions'; // Corrected import path
+import { addPaymentConfirmationAction } from '../actions';
 import type { User as FirebaseUser } from "firebase/auth";
+import Image from 'next/image'; // Import next/image
 
 // Helper function to calculate due amount (simplified)
 const calculateDueAmount = (customer: Customer | null): number => {
@@ -79,7 +79,6 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
   const [isSubmittingPayment, setIsSubmittingPayment] = React.useState(false);
   const [isConfirmationDialogOpen, setIsConfirmationDialogOpen] = React.useState(false);
   
-  // Update local customer state if props from layout change (e.g. after payment confirmation)
   React.useEffect(() => {
     if (customerDataFromLayout) {
       setCustomer(customerDataFromLayout);
@@ -88,7 +87,6 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
 
 
   if (!firebaseUserFromLayout || !customer) {
-    // Layout should handle this, but as a fallback.
     return <div className="flex items-center justify-center min-h-[calc(100vh-10rem)]">
         <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
         <p>Memuat data tagihan...</p>
@@ -96,7 +94,7 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
   }
 
   const handlePaymentConfirmationSubmit = async (
-    data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus'> & { proofFileName?: string; signatureDataUrl?: string }
+    data: Omit<Payment, 'id' | 'periodStart' | 'periodEnd' | 'paymentStatus'> & { proofOfPaymentUrl?: string; signatureDataUrl?: string }
   ) => {
     if (!customer || !firebaseUserFromLayout?.uid) return;
     setIsSubmittingPayment(true);
@@ -159,21 +157,19 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
       amount: data.amount,
       paymentMethod: data.paymentMethod,
       notes: data.notes,
-      proofOfPaymentUrl: data.proofFileName,
+      proofOfPaymentUrl: data.proofOfPaymentUrl, // This will be Base64 data URI or undefined
       signatureDataUrl: data.signatureDataUrl,
       paymentStatus: 'pending_konfirmasi',
       periodStart: periodStart.toISOString(),
       periodEnd: periodEnd.toISOString(),
     };
 
-    // Use firebaseUID to identify the customer for the action
     const result = await addPaymentConfirmationAction(firebaseUserFromLayout.uid, newPayment);
     if (result.success) {
       toast({ title: 'Konfirmasi Terkirim', description: result.message });
-      // Data revalidation is handled by actions, layout will refetch or use revalidated cache.
-      // For immediate UI update, update local state `customer` if action returns updated customer data.
-      // Or rely on revalidatePath and layout's refetch. For now, layout refetch will handle.
       setIsConfirmationDialogOpen(false);
+      // Revalidation will be handled by layout/actions, no need to locally update customer state here
+      // as layout will refetch.
     } else {
       toast({ title: 'Gagal', description: result.message || 'Terjadi kesalahan.', variant: 'destructive' });
     }
@@ -303,23 +299,34 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
                       </TableCell>
                        <TableCell>
                         {payment.proofOfPaymentUrl ? (
-                          <a 
-                            href={payment.proofOfPaymentUrl.startsWith('http') ? payment.proofOfPaymentUrl : undefined} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className={`text-sm text-primary hover:underline ${!payment.proofOfPaymentUrl.startsWith('http') && !payment.proofOfPaymentUrl.startsWith('mock_proof_') ? 'cursor-default pointer-events-none opacity-70' : ''}`}
-                            onClick={(e) => {
-                                if (payment.proofOfPaymentUrl?.startsWith('mock_proof_')) {
-                                     e.preventDefault();
-                                     toast({ title: "Info Bukti (Mock)", description: `File: ${payment.proofOfPaymentUrl.replace('mock_proof_', '')}`});
-                                } else if (!payment.proofOfPaymentUrl?.startsWith('http')) {
-                                     e.preventDefault();
-                                     toast({ title: "Info", description: `Bukti: ${payment.proofOfPaymentUrl}`}); // Display filename
-                                }
-                            }}
-                            >
-                            {payment.proofOfPaymentUrl.startsWith('mock_proof_') || !payment.proofOfPaymentUrl.startsWith('http') ? `Lihat (${payment.proofOfPaymentUrl.replace('mock_proof_', '').substring(0,15)}...)` : 'Lihat Bukti'}
-                          </a>
+                           payment.proofOfPaymentUrl.startsWith('data:image') ? (
+                             <Popover>
+                               <PopoverTrigger asChild>
+                                 <Button variant="link" size="sm" className="h-auto p-0 text-primary hover:underline">
+                                   <Eye className="mr-1 h-3 w-3" /> Lihat Gambar
+                                 </Button>
+                               </PopoverTrigger>
+                               <PopoverContent className="w-auto p-0">
+                                 <Image src={payment.proofOfPaymentUrl} alt="Bukti Pembayaran" width={300} height={400} style={{objectFit: 'contain'}} className="rounded-md" data-ai-hint="payment proof" />
+                               </PopoverContent>
+                             </Popover>
+                           ) : (
+                            // Fallback for non-DataURI URLs or mock filenames
+                            <a 
+                                href={payment.proofOfPaymentUrl.startsWith('http') ? payment.proofOfPaymentUrl : undefined} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className={`text-sm text-primary hover:underline ${!payment.proofOfPaymentUrl.startsWith('http') ? 'cursor-default pointer-events-none opacity-70' : ''}`}
+                                onClick={(e) => {
+                                    if (!payment.proofOfPaymentUrl?.startsWith('http')) {
+                                        e.preventDefault();
+                                        toast({ title: "Info Bukti", description: `File: ${payment.proofOfPaymentUrl}`});
+                                    }
+                                }}
+                                >
+                                {payment.proofOfPaymentUrl.startsWith('mock_proof_') || !payment.proofOfPaymentUrl.startsWith('http') ? `Lihat (${payment.proofOfPaymentUrl.replace('mock_proof_', '').substring(0,15)}...)` : 'Lihat Tautan'}
+                            </a>
+                           )
                         ) : (
                           '-'
                         )}
@@ -355,3 +362,5 @@ export default function PelangganTagihanPage({ customerDataFromLayout, firebaseU
     </div>
   );
 }
+    
+    
