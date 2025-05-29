@@ -2,13 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, usePathname } from 'next/navigation'; // Removed useParams
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Wifi, UserCircle, LogOut, LayoutDashboard, FileText, MessageSquare, Loader2 } from 'lucide-react';
+import { Wifi, UserCircle, LogOut, LayoutDashboard, FileText, MessageSquare, Loader2, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { useToast } from '@/hooks/use-toast';
 import type { Customer } from '@/types/customer';
-import { getCustomerByFirebaseUIDAction } from './actions'; // Import server action
+import { getCustomerByFirebaseUIDAction } from './actions';
 import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
 import { auth } from '@/lib/firebase';
 
@@ -23,30 +23,45 @@ export default function PelangganLayout({
   const [firebaseUser, setFirebaseUser] = React.useState<FirebaseUser | null>(null);
   const [customer, setCustomer] = React.useState<Customer | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [errorFetchingCustomer, setErrorFetchingCustomer] = React.useState<string | null>(null);
 
 
   React.useEffect(() => {
+    console.log('PelangganLayout: useEffect triggered. Pathname:', pathname);
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsLoading(true); // Set loading true at the start of auth state change
+      setErrorFetchingCustomer(null); // Reset error state
+      setCustomer(null); // Reset customer data
+
       if (user) {
+        console.log('PelangganLayout: Firebase user detected:', user.uid, user.email);
         setFirebaseUser(user);
-        const result = await getCustomerByFirebaseUIDAction(user.uid);
-        if (result.success && result.customer) {
-          setCustomer(result.customer);
-        } else {
-          toast({
-            title: 'Error Memuat Data Pelanggan',
-            description: result.message || 'Gagal menghubungkan akun Anda dengan data pelanggan. Silakan hubungi admin.',
-            variant: 'destructive',
-          });
-          // Optionally sign out user if no customer profile is linked
-          // await signOut(auth); 
-          // router.replace('/login/pelanggan'); 
-          // For now, let them stay but show error in UI
+        try {
+          console.log('PelangganLayout: Attempting to fetch customer data for UID:', user.uid);
+          const result = await getCustomerByFirebaseUIDAction(user.uid);
+          console.log('PelangganLayout: getCustomerByFirebaseUIDAction result:', result);
+
+          if (result.success && result.customer) {
+            console.log('PelangganLayout: Customer data found:', result.customer.id, result.customer.name);
+            setCustomer(result.customer);
+          } else {
+            console.error('PelangganLayout: Failed to fetch customer data or customer not found. Message:', result.message);
+            setErrorFetchingCustomer(result.message || 'Data pelanggan tidak ditemukan terhubung dengan akun Anda.');
+            // Tidak logout otomatis, biarkan pengguna melihat pesan error
+          }
+        } catch (e: any) {
+            console.error('PelangganLayout: Exception while fetching customer data:', e);
+            setErrorFetchingCustomer('Terjadi kesalahan server saat mengambil data pelanggan.');
+            toast({
+                title: 'Error Server',
+                description: e.message || 'Gagal menghubungi server untuk data pelanggan.',
+                variant: 'destructive',
+            });
         }
       } else {
+        console.log('PelangganLayout: No Firebase user detected. Redirecting to login.');
         setFirebaseUser(null);
-        setCustomer(null);
-        // Only redirect if not already on the login page
+        // Hanya redirect jika tidak sudah di halaman login
         if (pathname !== '/login/pelanggan') {
              router.replace('/login/pelanggan');
         }
@@ -54,13 +69,16 @@ export default function PelangganLayout({
       setIsLoading(false);
     });
 
-    return () => unsubscribe();
-  }, [pathname, router, toast]);
+    return () => {
+      console.log('PelangganLayout: useEffect cleanup.');
+      unsubscribe();
+    };
+  }, [pathname, router, toast]); // `toast` ditambahkan jika digunakan dalam effect, meskipun lebih baik di luar jika memungkinkan
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Auth state change will trigger redirect via useEffect
+      // Auth state change akan trigger redirect via useEffect
       toast({
         title: 'Logout Berhasil',
         description: 'Anda telah keluar.',
@@ -75,7 +93,6 @@ export default function PelangganLayout({
     }
   };
   
-  // Adjusted navItems to remove customerId from href
   const navItems = [
     { href: `/pelanggan/dashboard`, label: 'Dashboard', icon: LayoutDashboard },
     { href: `/pelanggan/profil`, label: 'Profil', icon: UserCircle },
@@ -85,37 +102,40 @@ export default function PelangganLayout({
 
   if (isLoading) {
     return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-            <p>Memverifikasi sesi dan memuat data...</p>
+        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-lg text-muted-foreground">Memverifikasi sesi dan memuat data...</p>
         </div>
     );
   }
   
-  // If firebaseUser exists but customer profile doesn't, show an error message.
-  // This state might occur if Firebase Auth user exists but no corresponding Firestore doc with that firebaseUID.
-  if (firebaseUser && !customer && !isLoading) {
+  if (!firebaseUser && !isLoading && pathname !== '/login/pelanggan') {
+    // Kasus ini seharusnya ditangani oleh onAuthStateChanged yang redirect,
+    // tapi sebagai fallback jika render terjadi sebelum redirect selesai.
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-lg text-muted-foreground">Mengarahkan ke halaman login...</p>
+        </div>
+    );
+  }
+  
+  if (firebaseUser && !customer && !isLoading && errorFetchingCustomer) {
      return (
         <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-            <Wifi className="h-12 w-12 text-primary mb-4" />
-            <h1 className="text-2xl font-semibold mb-2">Gagal Memuat Profil Pelanggan</h1>
-            <p className="text-muted-foreground mb-4">
-                Tidak dapat menemukan data pelanggan yang terhubung dengan akun Anda ({firebaseUser.email}). <br/>
-                Ini mungkin karena data pelanggan belum di-link oleh admin atau ada kesalahan konfigurasi.
+            <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+            <h1 className="text-2xl font-semibold mb-2 text-destructive">Gagal Memuat Profil Pelanggan</h1>
+            <p className="text-muted-foreground mb-2">
+                Email terautentikasi: <span className="font-medium">{firebaseUser.email}</span>
             </p>
-            <p className="text-muted-foreground mb-6">Silakan hubungi admin untuk bantuan.</p>
-            <Button onClick={handleLogout}>Logout dan Kembali ke Login</Button>
-        </div>
-    );
-  }
-  
-  // If no firebaseUser (which means onAuthStateChanged redirected or is about to),
-  // this prevents rendering children briefly before redirect.
-  if (!firebaseUser && !isLoading && pathname !== '/login/pelanggan') {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mr-2" />
-            <p>Mengarahkan ke login...</p>
+            <p className="text-muted-foreground mb-4">
+                Pesan error: {errorFetchingCustomer}
+            </p>
+            <p className="text-muted-foreground mb-6 text-sm">
+                Pastikan akun Firebase Anda (<span className="font-mono text-xs">{firebaseUser.uid}</span>) telah ditautkan dengan benar ke data pelanggan (field `firebaseUID`) oleh admin di sistem ELANET.
+                Jika masalah berlanjut, silakan hubungi admin untuk bantuan.
+            </p>
+            <Button onClick={handleLogout} variant="destructive">Logout dan Coba Lagi</Button>
         </div>
     );
   }
@@ -130,7 +150,7 @@ export default function PelangganLayout({
         </Link>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground hidden sm:inline">
-            Halo, {customer?.name.split(' ')[0] || firebaseUser?.email?.split('@')[0] || 'Pelanggan'}
+            Halo, {customer?.name?.split(' ')[0] || firebaseUser?.email?.split('@')[0] || 'Pelanggan'}
           </span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
             <LogOut className="h-5 w-5" />
@@ -156,14 +176,14 @@ export default function PelangganLayout({
             ))}
         </nav>
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
-            {/* Pass customer and firebaseUser data to children */}
-            {firebaseUser && customer && !isLoading ? React.Children.map(children, child => {
+            {/* Pass customer and firebaseUser data to children if available */}
+            {firebaseUser && customer && !isLoading && !errorFetchingCustomer ? React.Children.map(children, child => {
                 if (React.isValidElement(child)) {
                     // @ts-ignore 
                     return React.cloneElement(child, { customerDataFromLayout: customer, firebaseUserFromLayout: firebaseUser });
                 }
                 return child;
-            }) : null}
+            }) : null /* Atau tampilkan pesan/loader spesifik di main area jika diperlukan */}
         </main>
       </div>
        {/* Bottom navigation for mobile */}
@@ -187,3 +207,5 @@ export default function PelangganLayout({
     </div>
   );
 }
+
+    
