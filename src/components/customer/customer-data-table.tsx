@@ -1,3 +1,4 @@
+
 'use client';
 
 import * as React from 'react';
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from 'lucide-react';
 
+const CUSTOMER_TABLE_VISIBILITY_KEY = 'customerTableColumnVisibility';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -44,7 +46,24 @@ export function CustomerDataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  
+  // Load initial column visibility from localStorage
+  const getInitialVisibility = (): VisibilityState => {
+    if (typeof window !== 'undefined') {
+      const storedVisibility = localStorage.getItem(CUSTOMER_TABLE_VISIBILITY_KEY);
+      if (storedVisibility) {
+        try {
+          return JSON.parse(storedVisibility);
+        } catch (e) {
+          console.error("Error parsing column visibility from localStorage", e);
+          return {}; // Default to showing all columns on error
+        }
+      }
+    }
+    return {}; // Default to showing all columns if nothing stored or SSR
+  };
+
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(getInitialVisibility());
   const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
@@ -56,7 +75,18 @@ export function CustomerDataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: (newVisibilityUpdater) => {
+      // newVisibilityUpdater can be a function or an object
+      // We need to resolve it to an object before saving
+      const newVisibility = typeof newVisibilityUpdater === 'function' 
+        ? newVisibilityUpdater(columnVisibility) 
+        : newVisibilityUpdater;
+
+      setColumnVisibility(newVisibility);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(CUSTOMER_TABLE_VISIBILITY_KEY, JSON.stringify(newVisibility));
+      }
+    },
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
@@ -64,7 +94,21 @@ export function CustomerDataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
     },
+    initialState: {
+      // We manage columnVisibility through useState initialized from localStorage
+      // so we don't need to set it here in initialState if using that approach.
+      // If we weren't using useState for initial visibility, we'd put it here.
+    }
   });
+
+  // Effect to update localStorage when columnVisibility changes
+  // This is an alternative way to handle it if onColumnVisibilityChange doesn't directly set localStorage
+  // React.useEffect(() => {
+  //   if (typeof window !== 'undefined') {
+  //     localStorage.setItem(CUSTOMER_TABLE_VISIBILITY_KEY, JSON.stringify(columnVisibility));
+  //   }
+  // }, [columnVisibility]);
+
 
   return (
     <div>
